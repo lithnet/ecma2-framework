@@ -1,0 +1,90 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Project ToolsVersion="15.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <Import Project="$(MSBuildExtensionsPath)\$(MSBuildToolsVersion)\Microsoft.Common.props" Condition="Exists('$(MSBuildExtensionsPath)\$(MSBuildToolsVersion)\Microsoft.Common.props')" />
+  <PropertyGroup>
+    <Configuration Condition=" '$(Configuration)' == '' ">Debug</Configuration>
+    <Platform Condition=" '$(Platform)' == '' ">AnyCPU</Platform>
+    <ProjectGuid>{DA889F27-C149-43A9-81A3-2D926E200146}</ProjectGuid>
+    <OutputType>Library</OutputType>
+    <AppDesignerFolder>Properties</AppDesignerFolder>
+    <RootNamespace>Lithnet.Ecma2Framework</RootNamespace>
+    <AssemblyName>Lithnet.Ecma2Framework</AssemblyName>
+    <TargetFrameworkVersion>v4.6.1</TargetFrameworkVersion>
+    <FileAlignment>512</FileAlignment>
+    <NuGetPackageImportStamp>
+    </NuGetPackageImportStamp>
+  </PropertyGroup>
+  <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Debug|AnyCPU' ">
+    <DebugSymbols>true</DebugSymbols>
+    <DebugType>full</DebugType>
+    <Optimize>false</Optimize>
+    <OutputPath>bin\Debug\</OutputPath>
+    <DefineConstants>DEBUG;TRACE</DefineConstants>
+    <ErrorReport>prompt</ErrorReport>
+    <WarningLevel>4</WarningLevel>
+  </PropertyGroup>
+  <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Release|AnyCPU' ">
+    <DebugType>pdbonly</DebugType>
+    <Optimize>true</Optimize>
+    <OutputPath>bin\Release\</OutputPath>
+    <DefineConstants>TRACE</DefineConstants>
+    <ErrorReport>prompt</ErrorReport>
+    <WarningLevel>4</WarningLevel>
+  </PropertyGroup>
+  <ItemGroup>
+    <Reference Include="Microsoft.MetadirectoryServicesEx, Version=4.1.4.0, Culture=neutral, PublicKeyToken=31bf3856ad364e35, processorArchitecture=MSIL">
+      <SpecificVersion>False</SpecificVersion>
+      <HintPath>C:\Program Files\Microsoft Forefront Identity Manager\2010\Synchronization Service\Extensions\Microsoft.MetadirectoryServicesEx.dll</HintPath>
+    </Reference>
+    <Reference Include="Newtonsoft.Json, Version=11.0.0.0, Culture=neutral, PublicKeyToken=30ad4fe6b2a6aeed, processorArchitecture=MSIL">
+      <HintPath>..\packages\Newtonsoft.Json.11.0.2\lib\net45\Newtonsoft.Json.dll</HintPath>
+      <Private>True</Private>
+    </Reference>
+    <Reference Include="NLog, Version=4.0.0.0, Culture=neutral, PublicKeyToken=5120e14c03d0593c, processorArchitecture=MSIL">
+      <HintPath>..\packages\NLog.4.5.4\lib\net45\NLog.dll</HintPath>
+      <Private>True</Private>
+    </Reference>
+    <Reference Include="System" />
+    <Reference Include="System.Core" />
+    <Reference Include="System.IO.Compression" />
+  </ItemGroup>
+  <ItemGroup>
+    <Compile Include="Enums\ConnectionContextOperationType.cs" />
+    <Compile Include="IMAExtensible2\Ecma2.cs" />
+    <Compile Include="IMAExtensible2\Ecma2Export.cs" />
+    <Compile Include="IMAExtensible2\Ecma2Import.cs" />
+    <Compile Include="IMAExtensible2\Ecma2Password.cs" />
+    <Compile Include="Exceptions\ProviderNotFoundException.cs" />
+    <Compile Include="ContextObjects\ExportContext.cs" />
+    <Compile Include="GenericExtensions.cs" />
+    <Compile Include="ContextObjects\ImportContext.cs" />
+    <Compile Include="InterfaceManager.cs" />
+    <Compile Include="Interfaces\ICapabilitiesProvider.cs" />
+    <Compile Include="Interfaces\IConfigParametersProvider.cs" />
+    <Compile Include="Interfaces\IConnectionContextProvider.cs" />
+    <Compile Include="Interfaces\IObjectExportProvider.cs" />
+    <Compile Include="Interfaces\IObjectImportProvider.cs" />
+    <Compile Include="Interfaces\IObjectPasswordProvider.cs" />
+    <Compile Include="Interfaces\ISchemaProvider.cs" />
+    <Compile Include="Logging.cs" />
+    <Compile Include="ContextObjects\PasswordContext.cs" />
+    <Compile Include="Properties\AssemblyInfo.cs" />
+    <Compile Include="ContextObjects\SchemaContext.cs" />
+    <Compile Include="GlobalSettings.cs" />
+    <Compile Include="Watermark.cs" />
+    <Compile Include="WatermarkKeyedCollection.cs" />
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="Lithnet.Ecma2Framework.csproj.nuspec" />
+    <None Include="packages.config" />
+  </ItemGroup>
+  <ItemGroup>
+    <Content Include="FodyWeavers.xml" />
+  </ItemGroup>
+  <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
+  <PropertyGroup>
+    <PostBuildEvent>"C:\Program Files (x86)\Microsoft SDKs\ClickOnce\SignTool\signtool.exe" sign /sha1 "$(CSCERTTHUMBPRINT)" /t http://timestamp.digicert.com /fd sha256 /v "$(TargetFileName)"
+"C:\Program Files\Debugging Tools for Windows (x64)\symstore" add /f "$(TargetDir)*.pdb" /s \\localhost\symbols /t "$(ProjectName)" /v "@(VersionNumber)"
+d:\nuget\NuGet.exe pack $(ProjectPath) -Exclude **\*.xml -OutputDirectory D:\nuget\packages -Symbols</PostBuildEvent>
+  </PropertyGroup>
+</Project>

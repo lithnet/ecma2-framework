@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="utf-8"?>
+<package xmlns="http://schemas.microsoft.com/packaging/2010/07/nuspec.xsd">
+  <metadata>
+    <id>Lithnet.Ecma2Framework</id>
+    <version>$version$</version>
+    <title>Lithnet ECMA2 Framework</title>
+    <authors>ryan@lithiumblue.com</authors>
+    <licenseUrl>https://github.com/lithnet/ecma2-framework</licenseUrl>
+    <projectUrl>https://github.com/lithnet/ecma2-frameowkr</projectUrl>
+    <requireLicenseAcceptance>false</requireLicenseAcceptance>
+    <description>The Lithnet ECMA2 framework provides a base for creating high performance multi-threaded management agents for Microsoft Identity Manager</description>
+    <dependencies>
+      <dependency id="Costura.Fody" version="2.0.1"/>
+    </dependencies>
+  </metadata>
+  <files/>
+</package>
