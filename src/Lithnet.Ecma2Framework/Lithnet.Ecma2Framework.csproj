@@ -63,6 +63,7 @@
     <Compile Include="Interfaces\IConfigParametersProvider.cs" />
     <Compile Include="Interfaces\IConnectionContextProvider.cs" />
     <Compile Include="Interfaces\IObjectExportProvider.cs" />
+    <Compile Include="Interfaces\IAttributeProvider.cs" />
     <Compile Include="Interfaces\IObjectImportProvider.cs" />
     <Compile Include="Interfaces\IObjectPasswordProvider.cs" />
     <Compile Include="Interfaces\ISchemaProvider.cs" />

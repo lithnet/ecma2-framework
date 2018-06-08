@@ -96,18 +96,18 @@ namespace Lithnet.Ecma2Framework
             }
 
             logger.Info("Import operation complete");
-            logger.Info("Imported {0} objects", this.importContext.ImportedItemCount);
+            logger.Info($"Imported {this.importContext.ImportedItemCount} objects");
 
             if (this.importContext.ImportedItemCount > 0 && this.importContext.Timer.Elapsed.TotalSeconds > 0)
             {
                 if (this.importContext.ProducerDuration.TotalSeconds > 0)
                 {
-                    logger.Info("CSEntryChange production duration: {0}", this.importContext.ProducerDuration);
-                    logger.Info("CSEntryChange production speed: {0} obj/sec", (int)(this.importContext.ImportedItemCount / this.importContext.ProducerDuration.TotalSeconds));
+                    logger.Info($"CSEntryChange production duration: {this.importContext.ProducerDuration}");
+                    logger.Info($"CSEntryChange production speed: {(this.importContext.ImportedItemCount / this.importContext.ProducerDuration.TotalSeconds):N2} obj/sec");
                 }
 
-                logger.Info("Import duration: {0}", this.importContext.Timer.Elapsed);
-                logger.Info("Import speed: {0} obj/sec", (int)(this.importContext.ImportedItemCount / this.importContext.Timer.Elapsed.TotalSeconds));
+                logger.Info($"Import duration: {this.importContext.Timer.Elapsed}");
+                logger.Info($"Import speed: {(this.importContext.ImportedItemCount / this.importContext.Timer.Elapsed.TotalSeconds):N2} obj/sec");
             }
 
             if (this.importContext.OutgoingWatermark?.Any() == true)

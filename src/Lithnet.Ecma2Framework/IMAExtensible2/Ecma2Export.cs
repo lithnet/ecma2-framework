@@ -119,7 +119,7 @@ namespace Lithnet.Ecma2Framework
 
         public void CloseExportConnection(CloseExportConnectionRunStep exportRunStep)
         {
-            logger.Info("Closing export connection: {0}", exportRunStep.Reason);
+            logger.Info($"Closing export connection: {exportRunStep.Reason}");
 
             if (this.exportContext == null)
             {
@@ -141,12 +141,13 @@ namespace Lithnet.Ecma2Framework
             }
 
             logger.Info("Export operation complete");
-            logger.Info("Exported {0} objects", this.exportContext.ExportedItemCount);
-            logger.Info("Export duration: {0}", this.exportContext.Timer.Elapsed);
+            logger.Info($"Exported { this.exportContext.ExportedItemCount} objects");
+            logger.Info($"Export duration: {this.exportContext.Timer.Elapsed}");
+
             if (this.exportContext.ExportedItemCount > 0 && this.exportContext.Timer.Elapsed.TotalSeconds > 0)
             {
-                logger.Info("Speed: {0} obj/sec", (int)(this.exportContext.ExportedItemCount / this.exportContext.Timer.Elapsed.TotalSeconds));
-                logger.Info("Average: {0} sec/obj", this.exportContext.Timer.Elapsed.TotalSeconds / this.exportContext.ExportedItemCount);
+                logger.Info($"Speed: {(this.exportContext.ExportedItemCount / this.exportContext.Timer.Elapsed.TotalSeconds):N2} obj/sec");
+                logger.Info($"Average: {(this.exportContext.Timer.Elapsed.TotalSeconds / this.exportContext.ExportedItemCount):N2} sec/obj");
             }
         }
     }
