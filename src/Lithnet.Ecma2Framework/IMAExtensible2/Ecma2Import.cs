@@ -228,7 +228,7 @@ namespace Lithnet.Ecma2Framework
 
             if (this.importContext.Producer?.IsFaulted == true)
             {
-                throw new TerminateRunException("The producer thread encountered an exception", this.importContext.Producer.Exception);
+                throw new ExtensibleExtensionException("The producer thread encountered an exception", this.importContext.Producer.Exception);
             }
 
             if (mayHaveMore)
