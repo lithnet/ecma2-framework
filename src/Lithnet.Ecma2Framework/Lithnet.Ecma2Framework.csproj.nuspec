@@ -6,7 +6,7 @@
     <title>Lithnet ECMA2 Framework</title>
     <authors>ryan@lithiumblue.com</authors>
     <licenseUrl>https://github.com/lithnet/ecma2-framework</licenseUrl>
-    <projectUrl>https://github.com/lithnet/ecma2-frameowkr</projectUrl>
+    <projectUrl>https://github.com/lithnet/ecma2-framework</projectUrl>
     <requireLicenseAcceptance>false</requireLicenseAcceptance>
     <description>The Lithnet ECMA2 framework provides a base for creating high performance multi-threaded management agents for Microsoft Identity Manager</description>
     <dependencies>
