@@ -17,6 +17,8 @@ namespace Lithnet.Ecma2Framework
 
         private static List<IObjectExportProvider> providerCache;
 
+        private static List<IObjectExportProviderAsync> asyncProviderCache;
+
         private static List<IObjectExportProvider> Providers
         {
             get
@@ -27,6 +29,19 @@ namespace Lithnet.Ecma2Framework
                 }
 
                 return Ecma2Export.providerCache;
+            }
+        }
+
+        private static List<IObjectExportProviderAsync> AsyncProviders
+        {
+            get
+            {
+                if (Ecma2Export.asyncProviderCache == null)
+                {
+                    Ecma2Export.asyncProviderCache = InterfaceManager.GetInstancesOfType<IObjectExportProviderAsync>().ToList();
+                }
+
+                return Ecma2Export.asyncProviderCache;
             }
         }
 
@@ -77,10 +92,12 @@ namespace Lithnet.Ecma2Framework
                 logger.Info("Performing export for " + csentry.DN);
                 try
                 {
-                    IObjectExportProvider provider = this.GetProviderForType(csentry);
                     timer.Start();
-                    CSEntryChangeResult result = provider.PutCSEntryChange(csentry, this.exportContext);
+
+                    CSEntryChangeResult result = this.PutCSEntryChange(csentry);
+
                     timer.Stop();
+
                     lock (results)
                     {
                         results.CSEntryChangeResults.Add(result);
@@ -90,6 +107,7 @@ namespace Lithnet.Ecma2Framework
                 {
                     timer.Stop();
                     logger.Error(ex.UnwrapIfSingleAggregateException());
+
                     lock (results)
                     {
                         results.CSEntryChangeResults.Add(CSEntryChangeResult.Create(csentry.Identifier, null, MAExportError.ExportErrorCustomContinueRun, ex.UnwrapIfSingleAggregateException().Message, ex.UnwrapIfSingleAggregateException().ToString()));
@@ -104,6 +122,21 @@ namespace Lithnet.Ecma2Framework
             return results;
         }
 
+        private CSEntryChangeResult PutCSEntryChange(CSEntryChange csentry)
+        {
+            IObjectExportProviderAsync providerAsync = this.GetAsyncProviderForType(csentry);
+
+            if (providerAsync != null)
+            {
+                return AsyncHelper.RunSync(providerAsync.PutCSEntryChangeAsync(csentry, this.exportContext), this.exportContext.CancellationTokenSource.Token);
+            }
+            else
+            {
+                IObjectExportProvider provider = this.GetProviderForType(csentry);
+                return provider.PutCSEntryChange(csentry, this.exportContext);
+            }
+        }
+
         private IObjectExportProvider GetProviderForType(CSEntryChange csentry)
         {
             foreach (IObjectExportProvider provider in Ecma2Export.Providers)
@@ -115,6 +148,19 @@ namespace Lithnet.Ecma2Framework
             }
 
             throw new InvalidOperationException($"An export provider for the type '{csentry.ObjectType}' could not be found");
+        }
+
+        private IObjectExportProviderAsync GetAsyncProviderForType(CSEntryChange csentry)
+        {
+            foreach (IObjectExportProviderAsync provider in Ecma2Export.AsyncProviders)
+            {
+                if (provider.CanExport(csentry))
+                {
+                    return provider;
+                }
+            }
+
+            return null;
         }
 
         public void CloseExportConnection(CloseExportConnectionRunStep exportRunStep)

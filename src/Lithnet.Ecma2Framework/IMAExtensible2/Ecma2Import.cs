@@ -139,13 +139,26 @@ namespace Lithnet.Ecma2Framework
 
                     foreach (SchemaType type in context.Types.Types)
                     {
-                        IObjectImportProvider provider = this.GetProviderForType(type);
+                        IObjectImportProviderAsync asyncProvider = this.GetAsyncProviderForType(type);
 
-                        taskList.Add(Task.Run(() =>
+                        if (asyncProvider != null)
                         {
-                            logger.Info($"Starting import of type {type.Name}");
-                            provider.GetCSEntryChanges(context, type);
-                        }, context.CancellationTokenSource.Token));
+                            taskList.Add(Task.Run(async () =>
+                           {
+                               logger.Info($"Starting async import of type {type.Name}");
+                               await asyncProvider.GetCSEntryChangesAsync(context, type);
+                           }, context.CancellationTokenSource.Token));
+                        }
+                        else
+                        {
+                            IObjectImportProvider provider = this.GetProviderForType(type);
+
+                            taskList.Add(Task.Run(() =>
+                            {
+                                logger.Info($"Starting import of type {type.Name}");
+                                provider.GetCSEntryChanges(context, type);
+                            }, context.CancellationTokenSource.Token));
+                        }
                     }
 
                     Task.WaitAll(taskList.ToArray(), context.CancellationTokenSource.Token);
@@ -183,6 +196,20 @@ namespace Lithnet.Ecma2Framework
 
             throw new InvalidOperationException($"An import provider for the type '{type.Name}' could not be found");
         }
+
+        private IObjectImportProviderAsync GetAsyncProviderForType(SchemaType type)
+        {
+            foreach (IObjectImportProviderAsync provider in InterfaceManager.GetInstancesOfType<IObjectImportProviderAsync>())
+            {
+                if (provider.CanImport(type))
+                {
+                    return provider;
+                }
+            }
+
+            return null;
+        }
+
 
         private GetImportEntriesResults ConsumePageFromProducer()
         {

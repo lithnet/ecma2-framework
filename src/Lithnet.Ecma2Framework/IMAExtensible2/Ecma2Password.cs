@@ -15,6 +15,8 @@ namespace Lithnet.Ecma2Framework
 
         private static List<IObjectPasswordProvider> providerCache;
 
+        private static List<IObjectPasswordProviderAsync> asyncProviderCache;
+
         private static List<IObjectPasswordProvider> Providers
         {
             get
@@ -25,6 +27,19 @@ namespace Lithnet.Ecma2Framework
                 }
 
                 return Ecma2Password.providerCache;
+            }
+        }
+
+        private static List<IObjectPasswordProviderAsync> AsyncProviders
+        {
+            get
+            {
+                if (Ecma2Password.asyncProviderCache == null)
+                {
+                    Ecma2Password.asyncProviderCache = InterfaceManager.GetInstancesOfType<IObjectPasswordProviderAsync>().ToList();
+                }
+
+                return Ecma2Password.asyncProviderCache;
             }
         }
 
@@ -54,8 +69,7 @@ namespace Lithnet.Ecma2Framework
             try
             {
                 logger.Trace($"Setting password for: {csentry.DN}");
-                IObjectPasswordProvider provider = this.GetProviderForType(csentry);
-                provider.SetPassword(csentry, newPassword, options, this.passwordContext);
+                this.SetPasswordWithProvider(csentry, newPassword, options);
                 logger.Info($"Successfully set password for: {csentry.DN}");
             }
             catch (Exception ex)
@@ -71,8 +85,7 @@ namespace Lithnet.Ecma2Framework
             try
             {
                 logger.Info($"Changing password for: {csentry.DN}");
-                IObjectPasswordProvider provider = this.GetProviderForType(csentry);
-                provider.ChangePassword(csentry, oldPassword, newPassword, this.passwordContext);
+                this.ChangePasswordWithProvider(csentry, oldPassword, newPassword);
                 logger.Info($"Successfully changed password for: {csentry.DN}");
             }
             catch (Exception ex)
@@ -81,6 +94,47 @@ namespace Lithnet.Ecma2Framework
                 logger.Error(ex.UnwrapIfSingleAggregateException());
                 throw;
             }
+        }
+
+        private void SetPasswordWithProvider(CSEntry csentry, SecureString newPassword, PasswordOptions options)
+        {
+            IObjectPasswordProviderAsync asyncProvider = this.GetAsyncProviderForType(csentry);
+            if (asyncProvider != null)
+            {
+                asyncProvider.SetPasswordAsync(csentry, newPassword, options, this.passwordContext);
+            }
+            else
+            {
+                IObjectPasswordProvider provider = this.GetProviderForType(csentry);
+                provider.SetPassword(csentry, newPassword, options, this.passwordContext);
+            }
+        }
+
+        private void ChangePasswordWithProvider(CSEntry csentry, SecureString oldPassword, SecureString newPassword)
+        {
+            IObjectPasswordProviderAsync asyncProvider = this.GetAsyncProviderForType(csentry);
+            if (asyncProvider != null)
+            {
+                AsyncHelper.RunSync(asyncProvider.ChangePasswordAsync(csentry, oldPassword, newPassword, this.passwordContext));
+            }
+            else
+            {
+                IObjectPasswordProvider provider = this.GetProviderForType(csentry);
+                provider.ChangePassword(csentry, oldPassword, newPassword, this.passwordContext);
+            }
+        }
+
+        private IObjectPasswordProviderAsync GetAsyncProviderForType(CSEntry csentry)
+        {
+            foreach (IObjectPasswordProviderAsync provider in Ecma2Password.AsyncProviders)
+            {
+                if (provider.CanPerformPasswordOperation(csentry))
+                {
+                    return provider;
+                }
+            }
+
+            return null;
         }
 
         private IObjectPasswordProvider GetProviderForType(CSEntry csentry)
