@@ -143,10 +143,12 @@ namespace Lithnet.Ecma2Framework
 
                         if (asyncProvider != null)
                         {
-                            taskList.Add(Task.Run(async () =>
+                            taskList.Add(Task.Run(() =>
                            {
                                logger.Info($"Starting async import of type {type.Name}");
-                               await asyncProvider.GetCSEntryChangesAsync(context, type);
+                               AsyncHelper.RunSync(asyncProvider.GetCSEntryChangesAsync(context, type));
+                               logger.Info($"Async import of type {type.Name} completed");
+
                            }, context.CancellationTokenSource.Token));
                         }
                         else
@@ -157,6 +159,7 @@ namespace Lithnet.Ecma2Framework
                             {
                                 logger.Info($"Starting import of type {type.Name}");
                                 provider.GetCSEntryChanges(context, type);
+                                logger.Info($"Import of type {type.Name} completed");
                             }, context.CancellationTokenSource.Token));
                         }
                     }
