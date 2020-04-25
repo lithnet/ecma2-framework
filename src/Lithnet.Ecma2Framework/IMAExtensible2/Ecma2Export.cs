@@ -87,8 +87,10 @@ namespace Lithnet.Ecma2Framework
             {
                 Stopwatch timer = new Stopwatch();
 
-                Interlocked.Increment(ref this.exportContext.ExportedItemCount);
-                logger.Info("Performing export for " + csentry.DN);
+                int number = Interlocked.Increment(ref this.exportContext.ExportedItemCount);
+                string record  = $"{number}:{csentry.ObjectModificationType}:{csentry.ObjectType}:{csentry.DN}";
+
+                logger.Info($"Exporting record {record}");
                 try
                 {
                     timer.Start();
@@ -105,7 +107,7 @@ namespace Lithnet.Ecma2Framework
                 catch (Exception ex)
                 {
                     timer.Stop();
-                    logger.Error(ex.UnwrapIfSingleAggregateException());
+                    logger.Error(ex.UnwrapIfSingleAggregateException(), $"An error occurred exporting record {record}");
 
                     lock (results)
                     {
@@ -114,10 +116,11 @@ namespace Lithnet.Ecma2Framework
                 }
                 finally
                 {
-                    logger.Trace($"Export of {csentry.DN} took {timer.Elapsed}");
+                    logger.Trace($"Export of record {record} took {timer.Elapsed}");
                 }
             });
 
+            logger.Info($"Page complete. Export count: {this.exportContext.ExportedItemCount}");
             return results;
         }
 

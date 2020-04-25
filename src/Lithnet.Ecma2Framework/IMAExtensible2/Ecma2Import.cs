@@ -211,7 +211,6 @@ namespace Lithnet.Ecma2Framework
             return null;
         }
 
-
         private GetImportEntriesResults ConsumePageFromProducer()
         {
             int count = 0;
@@ -234,9 +233,10 @@ namespace Lithnet.Ecma2Framework
 
                 try
                 {
-                    // May be able to change this to Take(this.PageSize);
                     csentry = this.importContext.ImportItems.Take();
                     this.importContext.ImportedItemCount++;
+
+                    logger.Trace($"Got record {this.importContext.ImportedItemCount}:{csentry.ErrorCodeImport}:{csentry?.ObjectModificationType}:{csentry?.ObjectType}:{csentry?.DN}");
                 }
                 catch (InvalidOperationException)
                 {
