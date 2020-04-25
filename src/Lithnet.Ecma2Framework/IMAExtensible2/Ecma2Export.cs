@@ -57,7 +57,6 @@ namespace Lithnet.Ecma2Framework
 
             this.exportContext = new ExportContext()
             {
-                CancellationTokenSource = new CancellationTokenSource(),
                 ConfigParameters = configParameters
             };
 
@@ -81,7 +80,7 @@ namespace Lithnet.Ecma2Framework
             ParallelOptions po = new ParallelOptions
             {
                 MaxDegreeOfParallelism = GlobalSettings.ExportThreadCount,
-                CancellationToken = this.exportContext.CancellationTokenSource.Token
+                CancellationToken = this.exportContext.Token
             };
 
             Parallel.ForEach(csentries, po, (csentry) =>
@@ -128,7 +127,7 @@ namespace Lithnet.Ecma2Framework
 
             if (providerAsync != null)
             {
-                return AsyncHelper.RunSync(providerAsync.PutCSEntryChangeAsync(csentry, this.exportContext), this.exportContext.CancellationTokenSource.Token);
+                return AsyncHelper.RunSync(providerAsync.PutCSEntryChangeAsync(csentry, this.exportContext), this.exportContext.Token);
             }
             else
             {

@@ -25,11 +25,15 @@ namespace Lithnet.Ecma2Framework
 
         public Schema Types { get; internal set; }
 
-        public CancellationTokenSource CancellationTokenSource { get; internal set; }
+        internal CancellationTokenSource CancellationTokenSource { get; } = new CancellationTokenSource();
+
+        public CancellationToken Token => this.CancellationTokenSource.Token;
 
         public BlockingCollection<CSEntryChange> ImportItems { get; internal set; }
 
-        public object ConnectionContext { get; internal set; }
+        public IConnectionContext ConnectionContext { get; internal set; }
+
+        public object CustomData { get; set; }
 
         internal Stopwatch Timer { get; } = new Stopwatch();
 

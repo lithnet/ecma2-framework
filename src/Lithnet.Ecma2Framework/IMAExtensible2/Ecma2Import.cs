@@ -3,7 +3,6 @@ using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.Linq;
-using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.MetadirectoryServices;
 using Newtonsoft.Json;
@@ -29,7 +28,6 @@ namespace Lithnet.Ecma2Framework
 
             this.importContext = new ImportContext()
             {
-                CancellationTokenSource = new CancellationTokenSource(),
                 RunStep = importRunStep,
                 ImportItems = new BlockingCollection<CSEntryChange>(),
                 ConfigParameters = configParameters,

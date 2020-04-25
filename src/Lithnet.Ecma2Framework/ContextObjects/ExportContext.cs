@@ -9,9 +9,13 @@ namespace Lithnet.Ecma2Framework
     {
         public KeyedCollection<string, ConfigParameter> ConfigParameters { get; internal set; }
 
-        public CancellationTokenSource CancellationTokenSource { get; internal set; }
+        internal CancellationTokenSource CancellationTokenSource { get; } = new CancellationTokenSource();
 
-        public object ConnectionContext { get; internal set; }
+        public CancellationToken Token => this.CancellationTokenSource.Token;
+
+        public IConnectionContext ConnectionContext { get; internal set; }
+
+        public object CustomData { get; set; }
 
         internal Stopwatch Timer { get; } = new Stopwatch();
 
