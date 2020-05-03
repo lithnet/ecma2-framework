@@ -39,8 +39,14 @@ namespace Lithnet.Ecma2Framework
         {
             try
             {
+                Logging.SetupLogger(configParameters);
+
+                var configParameterDefinitions = new List<ConfigParameterDefinition>();
+                Logging.AddBuiltInLoggingParameters(page, configParameterDefinitions);
                 IConfigParametersProvider provider = InterfaceManager.GetProviderOrDefault<IConfigParametersProvider>();
-                return provider?.GetConfigParameters(configParameters, page) ?? new List<ConfigParameterDefinition>();
+                provider?.GetConfigParameters(configParameters, configParameterDefinitions, page);
+
+                return configParameterDefinitions;
             }
             catch (Exception ex)
             {
@@ -49,10 +55,19 @@ namespace Lithnet.Ecma2Framework
             }
         }
 
+      
+
         public ParameterValidationResult ValidateConfigParameters(KeyedCollection<string, ConfigParameter> configParameters, ConfigParameterPage page)
         {
             try
             {
+                var result = Logging.ValidateBuiltInLoggingParameters(configParameters, page);
+
+                if (result != null)
+                {
+                    return result;
+                }
+
                 IConfigParametersProvider provider = InterfaceManager.GetProviderOrDefault<IConfigParametersProvider>();
                 return provider?.ValidateConfigParameters(configParameters, page) ?? new ParameterValidationResult();
             }
@@ -67,6 +82,7 @@ namespace Lithnet.Ecma2Framework
         {
             try
             {
+                Logging.SetupLogger(configParameters);
                 ICapabilitiesProvider provider = InterfaceManager.GetProviderOrThrow<ICapabilitiesProvider>();
                 return provider.GetCapabilitiesEx(configParameters);
             }

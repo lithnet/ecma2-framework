@@ -68,6 +68,7 @@
     <Compile Include="Interfaces\ICapabilitiesProvider.cs" />
     <Compile Include="Interfaces\IConfigParametersProvider.cs" />
     <Compile Include="Interfaces\IConnectionContext.cs" />
+    <Compile Include="Interfaces\ISettingsProvider.cs" />
     <Compile Include="Interfaces\IConnectionContextProvider.cs" />
     <Compile Include="Interfaces\IObjectExportProviderAsync.cs" />
     <Compile Include="Interfaces\IObjectExportProvider.cs" />

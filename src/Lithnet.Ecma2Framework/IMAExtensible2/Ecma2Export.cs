@@ -88,35 +88,38 @@ namespace Lithnet.Ecma2Framework
                 Stopwatch timer = new Stopwatch();
 
                 int number = Interlocked.Increment(ref this.exportContext.ExportedItemCount);
-                string record  = $"{number}:{csentry.ObjectModificationType}:{csentry.ObjectType}:{csentry.DN}";
+                string record = $"{number}:{csentry.ObjectModificationType}:{csentry.ObjectType}:{csentry.DN}";
+                CSEntryChangeResult result = null;
 
                 logger.Info($"Exporting record {record}");
+
                 try
                 {
                     timer.Start();
-
-                    CSEntryChangeResult result = this.PutCSEntryChange(csentry);
-
-                    timer.Stop();
-
-                    lock (results)
-                    {
-                        results.CSEntryChangeResults.Add(result);
-                    }
+                    result = this.PutCSEntryChange(csentry);
                 }
                 catch (Exception ex)
                 {
-                    timer.Stop();
                     logger.Error(ex.UnwrapIfSingleAggregateException(), $"An error occurred exporting record {record}");
-
-                    lock (results)
-                    {
-                        results.CSEntryChangeResults.Add(CSEntryChangeResult.Create(csentry.Identifier, null, MAExportError.ExportErrorCustomContinueRun, ex.UnwrapIfSingleAggregateException().Message, ex.UnwrapIfSingleAggregateException().ToString()));
-                    }
+                    result = CSEntryChangeResult.Create(csentry.Identifier, null, MAExportError.ExportErrorCustomContinueRun, ex.UnwrapIfSingleAggregateException().Message, ex.UnwrapIfSingleAggregateException().ToString());
                 }
                 finally
                 {
-                    logger.Trace($"Export of record {record} took {timer.Elapsed}");
+                    timer.Stop();
+
+                    if (result == null)
+                    {
+                        logger.Error($"CSEntryResult for object {record} was null");
+                    }
+                    else
+                    {
+                        lock (results)
+                        {
+                            results.CSEntryChangeResults.Add(result);
+                        }
+                    }
+
+                    logger.Trace($"Export of record {record} returned '{result?.ErrorCode.ToString().ToLower() ?? "<null>"}' and took {timer.Elapsed}");
                 }
             });
 

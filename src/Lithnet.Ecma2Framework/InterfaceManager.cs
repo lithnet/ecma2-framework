@@ -1,14 +1,32 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Reflection;
+using NLog;
 
 namespace Lithnet.Ecma2Framework
 {
     internal static class InterfaceManager
     {
+        private static readonly Logger logger = LogManager.GetCurrentClassLogger();
+
         public static IEnumerable<Type> GetPluginsOfType<T>()
         {
-            return System.Reflection.Assembly.GetExecutingAssembly().GetTypes().Where(t => t.GetInterfaces().Contains(typeof(T)));
+            try
+            {
+                return Assembly.GetExecutingAssembly().GetTypes().Where(t => t.GetInterfaces().Contains(typeof(T)));
+            }
+            catch (ReflectionTypeLoadException ex)
+            {
+                logger.Error("Unable to load interfaces from type",ex);
+
+                foreach (var e in ex.LoaderExceptions)
+                {
+                    logger.Error(e);
+                }
+
+                throw;
+            }
         }
 
         public static IEnumerable<T> GetInstancesOfType<T>()
