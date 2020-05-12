@@ -3,7 +3,7 @@ using Microsoft.MetadirectoryServices;
 
 namespace Lithnet.Ecma2Framework
 {
-    public class PasswordContext
+    public class PasswordContext : IPasswordContext
     {
         public IConnectionContext ConnectionContext { get; internal set; }
 

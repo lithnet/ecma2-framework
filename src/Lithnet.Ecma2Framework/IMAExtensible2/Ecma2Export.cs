@@ -64,6 +64,7 @@ namespace Lithnet.Ecma2Framework
             {
                 logger.Info("Starting export");
                 this.exportContext.ConnectionContext = InterfaceManager.GetProviderOrDefault<IConnectionContextProvider>()?.GetConnectionContext(configParameters, ConnectionContextOperationType.Export);
+                this.InitializeProviders(this.exportContext);
                 this.exportContext.Timer.Start();
             }
             catch (Exception ex)
@@ -133,12 +134,12 @@ namespace Lithnet.Ecma2Framework
 
             if (providerAsync != null)
             {
-                return AsyncHelper.RunSync(providerAsync.PutCSEntryChangeAsync(csentry, this.exportContext), this.exportContext.Token);
+                return AsyncHelper.RunSync(providerAsync.PutCSEntryChangeAsync(csentry), this.exportContext.Token);
             }
             else
             {
                 IObjectExportProvider provider = this.GetProviderForType(csentry);
-                return provider.PutCSEntryChange(csentry, this.exportContext);
+                return provider.PutCSEntryChange(csentry);
             }
         }
 
@@ -166,6 +167,19 @@ namespace Lithnet.Ecma2Framework
             }
 
             return null;
+        }
+
+        private void InitializeProviders(ExportContext context)
+        {
+            foreach (var provider in AsyncProviders)
+            {
+                provider.Initialize(context);
+            }
+
+            foreach (var provider in Providers)
+            {
+                provider.Initialize(context);
+            }
         }
 
         public void CloseExportConnection(CloseExportConnectionRunStep exportRunStep)

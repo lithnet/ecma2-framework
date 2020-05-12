@@ -55,6 +55,10 @@
   </ItemGroup>
   <ItemGroup>
     <Compile Include="AsyncHelper.cs" />
+    <Compile Include="Interfaces\IExportContext.cs" />
+    <Compile Include="Interfaces\IImportContext.cs" />
+    <Compile Include="Interfaces\IPasswordContext.cs" />
+    <Compile Include="Interfaces\ISchemaContext.cs" />
     <Compile Include="Enums\ConnectionContextOperationType.cs" />
     <Compile Include="IMAExtensible2\Ecma2.cs" />
     <Compile Include="IMAExtensible2\Ecma2Export.cs" />

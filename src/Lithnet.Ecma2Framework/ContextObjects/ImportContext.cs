@@ -8,7 +8,7 @@ using Microsoft.MetadirectoryServices;
 
 namespace Lithnet.Ecma2Framework
 {
-    public class ImportContext
+    public class ImportContext : IImportContext
     {
         public ImportContext()
         {

@@ -9,8 +9,10 @@ namespace Lithnet.Ecma2Framework
 {
     public interface IObjectExportProviderAsync
     {
+        void Initialize(IExportContext context);
+
         bool CanExport(CSEntryChange csentry);
 
-        Task<CSEntryChangeResult> PutCSEntryChangeAsync(CSEntryChange csentry, ExportContext context);
+        Task<CSEntryChangeResult> PutCSEntryChangeAsync(CSEntryChange csentry);
     }
 }

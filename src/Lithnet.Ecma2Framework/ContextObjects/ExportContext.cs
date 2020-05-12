@@ -5,7 +5,7 @@ using Microsoft.MetadirectoryServices;
 
 namespace Lithnet.Ecma2Framework
 {
-    public class ExportContext
+    public class ExportContext : IExportContext
     {
         public KeyedCollection<string, ConfigParameter> ConfigParameters { get; internal set; }
 

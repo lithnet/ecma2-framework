@@ -3,7 +3,7 @@ using Microsoft.MetadirectoryServices;
 
 namespace Lithnet.Ecma2Framework
 {
-    public class SchemaContext
+    public class SchemaContext : ISchemaContext
     {
         public IConnectionContext ConnectionContext { get; internal set; }
 

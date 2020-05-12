@@ -53,6 +53,8 @@ namespace Lithnet.Ecma2Framework
                 ConnectionContext = InterfaceManager.GetProviderOrDefault<IConnectionContextProvider>()?.GetConnectionContext(configParameters, ConnectionContextOperationType.Password),
                 ConfigParameters = configParameters
             };
+
+            this.InitializeProviders(this.passwordContext);
         }
 
         public void ClosePasswordConnection()
@@ -101,12 +103,12 @@ namespace Lithnet.Ecma2Framework
             IObjectPasswordProviderAsync asyncProvider = this.GetAsyncProviderForType(csentry);
             if (asyncProvider != null)
             {
-                asyncProvider.SetPasswordAsync(csentry, newPassword, options, this.passwordContext);
+                asyncProvider.SetPasswordAsync(csentry, newPassword, options);
             }
             else
             {
                 IObjectPasswordProvider provider = this.GetProviderForType(csentry);
-                provider.SetPassword(csentry, newPassword, options, this.passwordContext);
+                provider.SetPassword(csentry, newPassword, options);
             }
         }
 
@@ -115,12 +117,12 @@ namespace Lithnet.Ecma2Framework
             IObjectPasswordProviderAsync asyncProvider = this.GetAsyncProviderForType(csentry);
             if (asyncProvider != null)
             {
-                AsyncHelper.RunSync(asyncProvider.ChangePasswordAsync(csentry, oldPassword, newPassword, this.passwordContext));
+                AsyncHelper.RunSync(asyncProvider.ChangePasswordAsync(csentry, oldPassword, newPassword));
             }
             else
             {
                 IObjectPasswordProvider provider = this.GetProviderForType(csentry);
-                provider.ChangePassword(csentry, oldPassword, newPassword, this.passwordContext);
+                provider.ChangePassword(csentry, oldPassword, newPassword);
             }
         }
 
@@ -148,6 +150,19 @@ namespace Lithnet.Ecma2Framework
             }
 
             throw new InvalidOperationException($"An export provider for the type '{csentry.ObjectType}' could not be found");
+        }
+
+        private void InitializeProviders(PasswordContext context)
+        {
+            foreach (var provider in AsyncProviders)
+            {
+                provider.Initialize(context);
+            }
+
+            foreach (var provider in Providers)
+            {
+                provider.Initialize(context);
+            }
         }
     }
 }
