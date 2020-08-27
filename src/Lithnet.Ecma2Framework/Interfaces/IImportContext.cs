@@ -5,11 +5,9 @@ using Microsoft.MetadirectoryServices;
 
 namespace Lithnet.Ecma2Framework
 {
-    public interface IImportContext
+    public interface IImportContext : IConfigParameterContext
     {
         bool InDelta { get; }
-
-        KeyedCollection<string, ConfigParameter> ConfigParameters { get; }
 
         WatermarkKeyedCollection IncomingWatermark { get; }
 

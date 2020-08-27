@@ -3,10 +3,8 @@ using Microsoft.MetadirectoryServices;
 
 namespace Lithnet.Ecma2Framework
 {
-    public interface IPasswordContext
+    public interface IPasswordContext : IConfigParameterContext
     {
         IConnectionContext ConnectionContext { get; }
-
-        KeyedCollection<string, ConfigParameter> ConfigParameters { get; }
     }
 }

@@ -9,6 +9,7 @@ namespace Lithnet.Ecma2Framework
     public class Ecma2 :
         IMAExtensible2GetSchema,
         IMAExtensible2GetCapabilitiesEx,
+        IMAExtensible2GetParametersEx,
         IMAExtensible2GetParameters
     {
         private static readonly Logger logger = LogManager.GetCurrentClassLogger();
@@ -44,7 +45,16 @@ namespace Lithnet.Ecma2Framework
                 var configParameterDefinitions = new List<ConfigParameterDefinition>();
                 Logging.AddBuiltInLoggingParameters(page, configParameterDefinitions);
                 IConfigParametersProvider provider = InterfaceManager.GetProviderOrDefault<IConfigParametersProvider>();
-                provider?.GetConfigParameters(configParameters, configParameterDefinitions, page);
+
+                if (provider == null)
+                {
+                    var providerEx = InterfaceManager.GetProviderOrDefault<IConfigParametersProviderEx>();
+                    providerEx?.GetConfigParametersEx(configParameters, configParameterDefinitions, page, 1);
+                }
+                else
+                {
+                    provider.GetConfigParameters(configParameters, configParameterDefinitions, page);
+                }
 
                 return configParameterDefinitions;
             }
@@ -54,8 +64,6 @@ namespace Lithnet.Ecma2Framework
                 throw;
             }
         }
-
-      
 
         public ParameterValidationResult ValidateConfigParameters(KeyedCollection<string, ConfigParameter> configParameters, ConfigParameterPage page)
         {
@@ -91,6 +99,49 @@ namespace Lithnet.Ecma2Framework
                 logger.Error(ex.UnwrapIfSingleAggregateException(), "Could not get capabilities");
                 throw;
             }
+        }
+
+        public IList<ConfigParameterDefinition> GetConfigParametersEx(KeyedCollection<string, ConfigParameter> configParameters, ConfigParameterPage page, int pageNumber)
+        {
+            IConfigParametersProviderEx provider = InterfaceManager.GetProviderOrDefault<IConfigParametersProviderEx>();
+
+            if (provider == null)
+            {
+                if (pageNumber > 1)
+                {
+                    return null;
+                }
+
+                return this.GetConfigParameters(configParameters, page);
+            }
+
+            var configParameterDefinitions = new List<ConfigParameterDefinition>();
+
+            if (pageNumber == 1)
+            {
+                Logging.AddBuiltInLoggingParameters(page, configParameterDefinitions);
+            }
+
+            provider.GetConfigParametersEx(configParameters, configParameterDefinitions, page, pageNumber);
+
+            return configParameterDefinitions;
+        }
+
+        public ParameterValidationResult ValidateConfigParametersEx(KeyedCollection<string, ConfigParameter> configParameters, ConfigParameterPage page, int pageNumber)
+        {
+            IConfigParametersProviderEx provider = InterfaceManager.GetProviderOrDefault<IConfigParametersProviderEx>();
+
+            if (provider == null)
+            {
+                if (pageNumber > 1)
+                {
+                    return null;
+                }
+
+                return this.ValidateConfigParameters(configParameters, page);
+            }
+
+            return provider.ValidateConfigParametersEx(configParameters, page, pageNumber);
         }
     }
 }
