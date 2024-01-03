@@ -1,105 +1,52 @@
-﻿<?xml version="1.0" encoding="utf-8"?>
-<Project ToolsVersion="15.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
-  <Import Project="$(MSBuildExtensionsPath)\$(MSBuildToolsVersion)\Microsoft.Common.props" Condition="Exists('$(MSBuildExtensionsPath)\$(MSBuildToolsVersion)\Microsoft.Common.props')" />
-  <PropertyGroup>
-    <Configuration Condition=" '$(Configuration)' == '' ">Debug</Configuration>
-    <Platform Condition=" '$(Platform)' == '' ">AnyCPU</Platform>
-    <ProjectGuid>{DA889F27-C149-43A9-81A3-2D926E200146}</ProjectGuid>
-    <OutputType>Library</OutputType>
-    <AppDesignerFolder>Properties</AppDesignerFolder>
-    <RootNamespace>Lithnet.Ecma2Framework</RootNamespace>
-    <AssemblyName>Lithnet.Ecma2Framework</AssemblyName>
-    <TargetFrameworkVersion>v4.6.1</TargetFrameworkVersion>
-    <FileAlignment>512</FileAlignment>
-    <NuGetPackageImportStamp>
-    </NuGetPackageImportStamp>
-  </PropertyGroup>
-  <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Debug|AnyCPU' ">
-    <DebugSymbols>true</DebugSymbols>
-    <DebugType>full</DebugType>
-    <Optimize>false</Optimize>
-    <OutputPath>bin\Debug\</OutputPath>
-    <DefineConstants>DEBUG;TRACE</DefineConstants>
-    <ErrorReport>prompt</ErrorReport>
-    <WarningLevel>4</WarningLevel>
-  </PropertyGroup>
-  <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Release|AnyCPU' ">
-    <DebugType>pdbonly</DebugType>
-    <Optimize>true</Optimize>
-    <OutputPath>bin\Release\</OutputPath>
-    <DefineConstants>TRACE</DefineConstants>
-    <ErrorReport>prompt</ErrorReport>
-    <WarningLevel>4</WarningLevel>
-  </PropertyGroup>
-  <ItemGroup>
-    <Reference Include="Microsoft.CSharp" />
-    <Reference Include="Microsoft.MetadirectoryServicesEx, Version=4.1.3.0, Culture=neutral, PublicKeyToken=31bf3856ad364e35, processorArchitecture=MSIL">
-      <SpecificVersion>False</SpecificVersion>
-      <HintPath>C:\Program Files\Microsoft Forefront Identity Manager\2010\Synchronization Service\Bin\Assemblies\Microsoft.MetadirectoryServicesEx.dll</HintPath>
-    </Reference>
-    <Reference Include="Newtonsoft.Json, Version=12.0.0.0, Culture=neutral, PublicKeyToken=30ad4fe6b2a6aeed, processorArchitecture=MSIL">
-      <HintPath>..\packages\Newtonsoft.Json.12.0.1\lib\net45\Newtonsoft.Json.dll</HintPath>
-    </Reference>
-    <Reference Include="NLog, Version=4.0.0.0, Culture=neutral, PublicKeyToken=5120e14c03d0593c, processorArchitecture=MSIL">
-      <HintPath>..\packages\NLog.4.5.11\lib\net45\NLog.dll</HintPath>
-    </Reference>
-    <Reference Include="System" />
-    <Reference Include="System.Configuration" />
-    <Reference Include="System.Core" />
-    <Reference Include="System.Data" />
-    <Reference Include="System.IO.Compression" />
-    <Reference Include="System.Runtime.Serialization" />
-    <Reference Include="System.ServiceModel" />
-    <Reference Include="System.Transactions" />
-    <Reference Include="System.Xml" />
-  </ItemGroup>
-  <ItemGroup>
-    <Compile Include="AsyncHelper.cs" />
-    <Compile Include="ConfigParameterExtensions.cs" />
-    <Compile Include="Interfaces\IConfigParametersProviderEx.cs" />
-    <Compile Include="Interfaces\IConfigParameterContext.cs" />
-    <Compile Include="Interfaces\IExportContext.cs" />
-    <Compile Include="Interfaces\IImportContext.cs" />
-    <Compile Include="Interfaces\IPasswordContext.cs" />
-    <Compile Include="Interfaces\ISchemaContext.cs" />
-    <Compile Include="Enums\ConnectionContextOperationType.cs" />
-    <Compile Include="IMAExtensible2\Ecma2.cs" />
-    <Compile Include="IMAExtensible2\Ecma2Export.cs" />
-    <Compile Include="IMAExtensible2\Ecma2Import.cs" />
-    <Compile Include="IMAExtensible2\Ecma2Password.cs" />
-    <Compile Include="Exceptions\ProviderNotFoundException.cs" />
-    <Compile Include="ContextObjects\ExportContext.cs" />
-    <Compile Include="GenericExtensions.cs" />
-    <Compile Include="ContextObjects\ImportContext.cs" />
-    <Compile Include="InterfaceManager.cs" />
-    <Compile Include="Interfaces\ICapabilitiesProvider.cs" />
-    <Compile Include="Interfaces\IConfigParametersProvider.cs" />
-    <Compile Include="Interfaces\IConnectionContext.cs" />
-    <Compile Include="Interfaces\ISettingsProvider.cs" />
-    <Compile Include="Interfaces\IConnectionContextProvider.cs" />
-    <Compile Include="Interfaces\IObjectExportProviderAsync.cs" />
-    <Compile Include="Interfaces\IObjectExportProvider.cs" />
-    <Compile Include="Interfaces\IObjectImportProviderAsync.cs" />
-    <Compile Include="Interfaces\IObjectImportProvider.cs" />
-    <Compile Include="Interfaces\IObjectPasswordProviderAsync.cs" />
-    <Compile Include="Interfaces\IObjectPasswordProvider.cs" />
-    <Compile Include="Interfaces\ISchemaProvider.cs" />
-    <Compile Include="Logging.cs" />
-    <Compile Include="ContextObjects\PasswordContext.cs" />
-    <Compile Include="Properties\AssemblyInfo.cs" />
-    <Compile Include="ContextObjects\SchemaContext.cs" />
-    <Compile Include="GlobalSettings.cs" />
-    <Compile Include="Watermark.cs" />
-    <Compile Include="WatermarkKeyedCollection.cs" />
-  </ItemGroup>
-  <ItemGroup>
-    <None Include="Lithnet.Ecma2Framework.csproj.nuspec" />
-    <None Include="packages.config" />
-  </ItemGroup>
-  <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
-  <PropertyGroup>
-    <PostBuildEvent>"C:\Program Files (x86)\Microsoft SDKs\ClickOnce\SignTool\signtool.exe" sign /sha1 "$(CSCERTTHUMBPRINT)" /t http://timestamp.digicert.com /fd sha256 /v "$(TargetFileName)"
-"C:\Program Files\Debugging Tools for Windows (x64)\symstore" add /f "$(TargetDir)*.pdb" /s \\localhost\symbols /t "$(ProjectName)" /v "@(VersionNumber)"
-d:\dev\nuget\NuGet.exe pack $(ProjectPath) -Exclude **\*.xml -OutputDirectory D:\dev\nuget\packages</PostBuildEvent>
-  </PropertyGroup>
+﻿<Project Sdk="Microsoft.NET.Sdk">
+	<PropertyGroup>
+		<TargetFrameworks>net461</TargetFrameworks>
+		<OutputType>Library</OutputType>
+		<PlatformTargets>AnyCPU</PlatformTargets>
+		<Deterministic>false</Deterministic>
+		<AutoGenerateBindingRedirects>true</AutoGenerateBindingRedirects>
+		<GenerateBindingRedirectsOutputType>true</GenerateBindingRedirectsOutputType>
+		<LangVersion>9</LangVersion>
+		<GeneratePackageOnBuild>true</GeneratePackageOnBuild>
+	</PropertyGroup>
+
+	<PropertyGroup>
+		<Description>The Lithnet ECMA2 framework provides a base for creating high performance multi-threaded management agents for Microsoft Identity Manager</Description>
+		<Company>Lithnet</Company>
+		<Copyright>Copyright 2023 Lithnet Pty Ltd</Copyright>
+		<ProductName>Lithnet ECMA2 framework</ProductName>
+		<Version>2.0.0</Version>
+		<Authors>Lithnet</Authors>
+		<AutoIncrementPackageRevision>true</AutoIncrementPackageRevision>
+		<IsPackable>true</IsPackable>
+		<PackageId>Lithnet.Ecma2Framework</PackageId>
+		<PackageLicenseExpression>MIT</PackageLicenseExpression>
+		<RepositoryUrl>https://github.com/lithnet/ecma2-frameworkr</RepositoryUrl>
+		<SupportUrl>https://github.com/lithnet/ecma2-framework</SupportUrl>
+		<PackageOutputPath>D:\dev\nuget\packages</PackageOutputPath>
+		<PublishRepositoryUrl>true</PublishRepositoryUrl>
+		<IncludeSymbols>true</IncludeSymbols>
+		<SymbolPackageFormat>snupkg</SymbolPackageFormat>
+		<EmbedUntrackedSources>true</EmbedUntrackedSources>
+	</PropertyGroup>
+
+	<PropertyGroup Condition="'$(TF_BUILD)' == 'true'">
+		<ContinuousIntegrationBuild>true</ContinuousIntegrationBuild>
+	</PropertyGroup>
+
+	<ItemGroup>
+		<PackageReference Include="Microsoft.SourceLink.GitHub" Version="1.1.1">
+			<PrivateAssets>all</PrivateAssets>
+			<IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
+		</PackageReference>
+		<PackageReference Include="Newtonsoft.Json" Version="13.0.3" />
+		<PackageReference Include="NLog" Version="4.5.11" />
+	</ItemGroup>
+
+	<ItemGroup>
+		<Reference Include="Microsoft.MetadirectoryServicesEx">
+			<HintPath>..\..\..\lib\Microsoft.MetadirectoryServicesEx\4.3.1935\Microsoft.MetadirectoryServicesEx.dll</HintPath>
+		</Reference>
+	</ItemGroup>
 </Project>
+
