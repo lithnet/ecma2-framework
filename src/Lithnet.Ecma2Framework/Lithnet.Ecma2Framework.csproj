@@ -3,7 +3,7 @@
 		<TargetFrameworks>net461</TargetFrameworks>
 		<OutputType>Library</OutputType>
 		<PlatformTargets>AnyCPU</PlatformTargets>
-		<Deterministic>false</Deterministic>
+		<Deterministic>true</Deterministic>
 		<AutoGenerateBindingRedirects>true</AutoGenerateBindingRedirects>
 		<GenerateBindingRedirectsOutputType>true</GenerateBindingRedirectsOutputType>
 		<LangVersion>9</LangVersion>
@@ -21,7 +21,7 @@
 		<IsPackable>true</IsPackable>
 		<PackageId>Lithnet.Ecma2Framework</PackageId>
 		<PackageLicenseExpression>MIT</PackageLicenseExpression>
-		<RepositoryUrl>https://github.com/lithnet/ecma2-frameworkr</RepositoryUrl>
+		<RepositoryUrl>https://github.com/lithnet/ecma2-framework</RepositoryUrl>
 		<SupportUrl>https://github.com/lithnet/ecma2-framework</SupportUrl>
 		<PackageOutputPath>D:\dev\nuget\packages</PackageOutputPath>
 		<PublishRepositoryUrl>true</PublishRepositoryUrl>
