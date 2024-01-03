@@ -44,9 +44,9 @@
 	</ItemGroup>
 
 	<ItemGroup>
-		<Reference Include="Microsoft.MetadirectoryServicesEx">
-			<HintPath>..\..\..\lib\Microsoft.MetadirectoryServicesEx\4.3.1935\Microsoft.MetadirectoryServicesEx.dll</HintPath>
-		</Reference>
+	  <Reference Include="Microsoft.MetadirectoryServicesEx">
+	    <HintPath>lib\Microsoft.MetadirectoryServicesEx.dll</HintPath>
+	  </Reference>
 	</ItemGroup>
 </Project>
 
