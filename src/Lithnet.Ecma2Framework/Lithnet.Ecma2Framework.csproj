@@ -41,11 +41,7 @@
 		</PackageReference>
 		<PackageReference Include="Newtonsoft.Json" Version="13.0.3" />
 		<PackageReference Include="NLog" Version="4.5.11" />
-		<PackageReference Include="ILRepack.Lib.MSBuild.Task" Version="2.0.18.2">
-			<PrivateAssets>None</PrivateAssets>
-			<ExcludeAssets>build</ExcludeAssets>
-			<IncludeAssets>All</IncludeAssets>
-		</PackageReference>
+		<PackageReference Include="ILRepack.Lib.MSBuild.Task" Version="2.0.18.2"/>
 	</ItemGroup>
 
 	<ItemGroup>
