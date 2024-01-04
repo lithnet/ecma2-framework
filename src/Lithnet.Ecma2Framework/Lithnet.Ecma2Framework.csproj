@@ -8,6 +8,10 @@
 		<GenerateBindingRedirectsOutputType>true</GenerateBindingRedirectsOutputType>
 		<LangVersion>9</LangVersion>
 		<GeneratePackageOnBuild>true</GeneratePackageOnBuild>
+
+		<!--ILRepack doesn't understand sdk-style project symbols, these two settings are required for debugging support-->
+		<DebugType>pdbonly</DebugType>
+		<DebugSymbols>true</DebugSymbols>
 	</PropertyGroup>
 
 	<PropertyGroup>
