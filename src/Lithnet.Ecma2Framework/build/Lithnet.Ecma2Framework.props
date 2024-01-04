@@ -2,5 +2,9 @@
 <Project xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
 	<PropertyGroup>
 		<ClearOutputDirectory>True</ClearOutputDirectory>
+		
+		<!--ILRepack doesn't understand sdk-style project symbols, these two settings are required for debugging support-->
+		<DebugType>pdbonly</DebugType>
+		<DebugSymbols>true</DebugSymbols>
 	</PropertyGroup>
 </Project>
