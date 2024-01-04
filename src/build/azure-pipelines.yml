@@ -38,17 +38,12 @@ stages:
           restoreSolution: '**/*.sln'
           feedsToUse: 'select'
           vstsFeed: '91a552bc-359d-4f28-bdbd-f36f71cfdf81'
-      - task: MSBuild@1
+      - task: DotNetCoreCLI@2
+        displayName: dotnet build
         inputs:
-          solution: 'src/Lithnet.Ecma2Framework/Lithnet.Ecma2Framework.csproj'
-          configuration: '$(buildConfiguration)'
-          msbuildArguments: '/p:Version=$(build.version) /p:GeneratePackageOnBuild=false'
-      #- task: DotNetCoreCLI@2
-      #  displayName: dotnet build
-      #  inputs:
-      #    command: build
-      #    arguments: '-c $(buildConfiguration) -p:Version=$(build.version) -p:GeneratePackageOnBuild=false'
-      #    projects: 'src/Lithnet.Ecma2Framework/Lithnet.Ecma2Framework.csproj'
+          command: build
+          arguments: '-c $(buildConfiguration) -p:Version=$(build.version) -p:GeneratePackageOnBuild=false'
+          projects: 'src/Lithnet.Ecma2Framework/Lithnet.Ecma2Framework.csproj'
 
       - task: DotNetCoreCLI@2
         inputs:
