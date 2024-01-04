@@ -18,7 +18,7 @@ namespace Lithnet.Ecma2Framework
             }
             catch (ReflectionTypeLoadException ex)
             {
-                logger.Error("Unable to load interfaces from type",ex);
+                logger.Error("Unable to load interfaces from type", ex);
 
                 foreach (var e in ex.LoaderExceptions)
                 {

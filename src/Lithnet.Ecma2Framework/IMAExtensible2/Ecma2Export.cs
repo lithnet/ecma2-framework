@@ -206,7 +206,7 @@ namespace Lithnet.Ecma2Framework
             }
 
             logger.Info("Export operation complete");
-            logger.Info($"Exported { this.exportContext.ExportedItemCount} objects");
+            logger.Info($"Exported {this.exportContext.ExportedItemCount} objects");
             logger.Info($"Export duration: {this.exportContext.Timer.Elapsed}");
 
             if (this.exportContext.ExportedItemCount > 0 && this.exportContext.Timer.Elapsed.TotalSeconds > 0)

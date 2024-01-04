@@ -1,6 +1,4 @@
-﻿using System.Collections.ObjectModel;
-using System.Threading;
-using Microsoft.MetadirectoryServices;
+﻿using System.Threading;
 
 namespace Lithnet.Ecma2Framework
 {

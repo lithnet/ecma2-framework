@@ -1,8 +1,4 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
+﻿using System.Threading.Tasks;
 using Microsoft.MetadirectoryServices;
 
 namespace Lithnet.Ecma2Framework
@@ -15,4 +11,4 @@ namespace Lithnet.Ecma2Framework
 
         Task GetCSEntryChangesAsync(SchemaType type);
     }
-} 
+}

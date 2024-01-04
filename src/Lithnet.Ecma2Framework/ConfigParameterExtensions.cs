@@ -1,5 +1,4 @@
-﻿using System;
-using System.Collections.Generic;
+﻿using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.Linq;
 using Microsoft.MetadirectoryServices;
@@ -22,7 +21,7 @@ namespace Lithnet.Ecma2Framework
         {
             return context.ConfigParameters.GetParamBool(name);
         }
-        
+
         public static List<string> GetParamStrings(this IConfigParameterContext context, string name, char separator)
         {
             return context.ConfigParameters.GetParamStrings(name, separator);

@@ -1,5 +1,4 @@
 ﻿using System.Collections.Concurrent;
-using System.Collections.ObjectModel;
 using System.Threading;
 using Microsoft.MetadirectoryServices;
 

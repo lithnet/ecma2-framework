@@ -157,7 +157,7 @@ namespace Lithnet.Ecma2Framework
                             {
                                 logger.Info($"Starting import of type {type.Name}");
                                 provider.Initialize(context);
-                                provider.GetCSEntryChanges( type);
+                                provider.GetCSEntryChanges(type);
                                 logger.Info($"Import of type {type.Name} completed");
                             }, context.CancellationTokenSource.Token));
                         }

@@ -1,7 +1,5 @@
-﻿using System;
-using System.Collections.ObjectModel;
+﻿using System.Collections.ObjectModel;
 using Microsoft.MetadirectoryServices;
-using NLog;
 using NLog.Config;
 
 namespace Lithnet.Ecma2Framework

@@ -34,20 +34,11 @@ stages:
       displayName: Build project
       steps:
       - task: DotNetCoreCLI@2
-        displayName: nuget restore
+        displayName: dotnet build
         inputs:
-            command: 'restore'
-            projects: 'src/Lithnet.Ecma2Framework/Lithnet.Ecma2Framework.csproj'
-            feedsToUse: 'select'
-            vstsFeed: '91a552bc-359d-4f28-bdbd-f36f71cfdf81'
-            includeNuGetOrg: true
-
-      - task: MSBuild@1
-        displayName: msbuild
-        inputs:
-          solution: 'src/Lithnet.Ecma2Framework/Lithnet.Ecma2Framework.csproj'
-          configuration: '$(buildConfiguration)'
-          msbuildArguments: '/p:configuration=$(buildConfiguration) /p:Version=$(build.version) /p:GeneratePackageOnBuild=false'
+          command: build
+          arguments: '-c $(buildConfiguration) -p:Version=$(build.version) -p:GeneratePackageOnBuild=false'
+          projects: 'src/Lithnet.Ecma2Framework/Lithnet.Ecma2Framework.csproj'
 
       - task: DotNetCoreCLI@2
         inputs:

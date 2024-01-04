@@ -15,6 +15,7 @@
 		<ItemGroup>
 			<InputAssemblies Include="$(OutputPath)$(TargetName)$(TargetExt)"/>
 			<InputAssemblies Include="$(OutputPath)*.dll" Exclude="$(OutputPath)$(TargetName)$(TargetExt)"/>
+			<InputAssemblies Remove="$(OutputPath)Microsoft.MetadirectoryServicesEx.dll"/>
 		</ItemGroup>
 
 		<ItemGroup>
