@@ -32,11 +32,17 @@ stages:
   jobs:
     - job: "build_provider_job"
       steps:
+      - task: NuGetCommand@2
+        inputs:
+          command: 'restore'
+          restoreSolution: '**/*.sln'
+          feedsToUse: 'select'
+          vstsFeed: '91a552bc-359d-4f28-bdbd-f36f71cfdf81'
       - task: MSBuild@1
         inputs:
           solution: 'src/Lithnet.Ecma2Framework/Lithnet.Ecma2Framework.csproj'
-          msbuildArguments: '-c $(buildConfiguration) -p:Version=$(build.version) -p:GeneratePackageOnBuild=false'
-          restoreNugetPackages: true
+          configuration: '$(buildConfiguration)'
+          msbuildArguments: '/p:Version=$(build.version) /p:GeneratePackageOnBuild=false'
       #- task: DotNetCoreCLI@2
       #  displayName: dotnet build
       #  inputs:
