@@ -32,12 +32,17 @@ stages:
   jobs:
     - job: "build_provider_job"
       steps:
-      - task: DotNetCoreCLI@2
-        displayName: dotnet build
+      - task: MSBuild@1
         inputs:
-          command: build
-          arguments: '-c $(buildConfiguration) -p:Version=$(build.version) -p:GeneratePackageOnBuild=false'
-          projects: 'src/Lithnet.Ecma2Framework/Lithnet.Ecma2Framework.csproj'
+          solution: 'src/Lithnet.Ecma2Framework/Lithnet.Ecma2Framework.csproj'
+          msbuildArguments: '-c $(buildConfiguration) -p:Version=$(build.version) -p:GeneratePackageOnBuild=false'
+          restoreNugetPackages: true
+      #- task: DotNetCoreCLI@2
+      #  displayName: dotnet build
+      #  inputs:
+      #    command: build
+      #    arguments: '-c $(buildConfiguration) -p:Version=$(build.version) -p:GeneratePackageOnBuild=false'
+      #    projects: 'src/Lithnet.Ecma2Framework/Lithnet.Ecma2Framework.csproj'
 
       - task: DotNetCoreCLI@2
         inputs:
