@@ -16,7 +16,7 @@
 		</ItemGroup>
 
 		<Message Text="MERGING: @(InputAssemblies->'%(Filename)') into $(OutputAssembly)" Importance="High" />
-		<ILRepack Parallel="true" Internalize="true" InternalizeExclude="@(DoNotInternalizeAssemblies)" InputAssemblies="@(InputAssemblies)" TargetKind="Dll" OutputFile="$(OutputPath)\$(AssemblyName).dll" LibraryPath="@(LibraryPaths)" />
+		<ILRepack Parallel="true" Internalize="true" DebugInfo="true" InternalizeExclude="@(DoNotInternalizeAssemblies)" InputAssemblies="@(InputAssemblies)" TargetKind="Dll" OutputFile="$(OutputPath)\$(AssemblyName).dll" LibraryPath="@(LibraryPaths)" />
 	</Target>
 
 	<Target AfterTargets="ILRepacker"
