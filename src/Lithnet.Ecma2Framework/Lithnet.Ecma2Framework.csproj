@@ -39,12 +39,13 @@
 			<PrivateAssets>all</PrivateAssets>
 			<IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
 		</PackageReference>
-		<PackageReference Include="Newtonsoft.Json" Version="13.0.3" />
+		<PackageReference Include="Newtonsoft.Json" Version="13.0.3" >
+			<PrivateAssets>all</PrivateAssets>
+		</PackageReference>
 		<PackageReference Include="NLog" Version="4.5.11" />
 		<PackageReference Include="ILRepack.Lib.MSBuild.Task" Version="2.0.18.2">
 			<PrivateAssets>None</PrivateAssets>
 			<IncludeAssets>All</IncludeAssets>
-			<ExcludeAssets>build</ExcludeAssets>
 		</PackageReference>
 	</ItemGroup>
 

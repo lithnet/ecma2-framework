@@ -31,20 +31,23 @@ stages:
   dependsOn: []
   jobs:
     - job: "build_provider_job"
+      displayName: Build project
       steps:
-      # Note, that ILRepack has dependencies on old MSBuild libraries, and isn't compatible with dotnet build tools. This only works because we disable the ILPack step in the project using the ExcludedAssets tag
-      # <PackageReference Include="ILRepack.Lib.MSBuild.Task" Version="2.0.18.2">
-      #   <PrivateAssets>None</PrivateAssets>
-      #   <IncludeAssets>All</IncludeAssets>
-      #   <ExcludeAssets>build</ExcludeAssets>
-      # </PackageReference>
-
       - task: DotNetCoreCLI@2
-        displayName: dotnet build
+        displayName: nuget restore
         inputs:
-          command: build
-          arguments: '-c $(buildConfiguration) -p:Version=$(build.version) -p:GeneratePackageOnBuild=false'
-          projects: 'src/Lithnet.Ecma2Framework/Lithnet.Ecma2Framework.csproj'
+            command: 'restore'
+            projects: 'src/Lithnet.Ecma2Framework/Lithnet.Ecma2Framework.csproj'
+            feedsToUse: 'select'
+            vstsFeed: '91a552bc-359d-4f28-bdbd-f36f71cfdf81'
+            includeNuGetOrg: true
+
+      - task: MSBuild@1
+        displayName: msbuild
+        inputs:
+          solution: 'src/Lithnet.Ecma2Framework/Lithnet.Ecma2Framework.csproj'
+          configuration: '$(buildConfiguration)'
+          msbuildArguments: '/p:configuration=$(buildConfiguration) /p:Version=$(build.version) /p:GeneratePackageOnBuild=false'
 
       - task: DotNetCoreCLI@2
         inputs:
