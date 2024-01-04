@@ -3,7 +3,8 @@
 	<Target Name="ILRepacker" AfterTargets="Build">
 
 		<ItemGroup>
-			<InputAssemblies Include="$(OutputPath)\*.dll" />
+			<InputAssemblies Include="$(OutputPath)\$(AssemblyName).dll" />
+			<InputAssemblies Include="$(OutputPath)\*.dll" Exclude="$(OutputPath)\$(AssemblyName).dll"/>
 		</ItemGroup>
 
 		<ItemGroup>
