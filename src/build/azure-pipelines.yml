@@ -32,12 +32,13 @@ stages:
   jobs:
     - job: "build_provider_job"
       steps:
-      - task: NuGetCommand@2
-        inputs:
-          command: 'restore'
-          restoreSolution: '**/*.sln'
-          feedsToUse: 'select'
-          vstsFeed: '91a552bc-359d-4f28-bdbd-f36f71cfdf81'
+      # Note, that ILRepack has dependencies on old MSBuild libraries, and isn't compatible with dotnet build tools. This only works because we disable the ILPack step in the project using the ExcludedAssets tag
+      # <PackageReference Include="ILRepack.Lib.MSBuild.Task" Version="2.0.18.2">
+	  #   <PrivateAssets>None</PrivateAssets>
+	  #   <IncludeAssets>All</IncludeAssets>
+      #   <ExcludeAssets>build</ExcludeAssets>
+	  # </PackageReference>
+
       - task: DotNetCoreCLI@2
         displayName: dotnet build
         inputs:
