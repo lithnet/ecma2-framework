@@ -4,6 +4,7 @@ using System.Collections.ObjectModel;
 using System.Linq;
 using System.Security;
 using System.Threading.Tasks;
+using Lithnet.Ecma2Framework.Interfaces;
 using Microsoft.MetadirectoryServices;
 using NLog;
 
@@ -40,6 +41,18 @@ namespace Lithnet.Ecma2Framework
                 ConnectionContext = await InterfaceManager.GetProviderOrDefault<IConnectionContextProvider>()?.GetConnectionContextAsync(configParameters, ConnectionContextOperationType.Password),
                 ConfigParameters = configParameters
             };
+
+            var initializers = InterfaceManager.GetInstancesOfType<IConnectionInitializer>();
+
+            if (initializers != null)
+            {
+                foreach (var initializer in initializers)
+                {
+                    logger.Info("Launching initializer");
+                    await initializer.InitializePasswordOperationAsync(this.passwordContext);
+                    logger.Info("Initializer complete");
+                }
+            }
 
             await this.InitializeProvidersAsync(this.passwordContext);
         }

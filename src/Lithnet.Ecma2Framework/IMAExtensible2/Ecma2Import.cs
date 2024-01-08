@@ -4,6 +4,7 @@ using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.Linq;
 using System.Threading.Tasks;
+using Lithnet.Ecma2Framework.Interfaces;
 using Microsoft.MetadirectoryServices;
 using Newtonsoft.Json;
 using NLog;
@@ -49,6 +50,18 @@ namespace Lithnet.Ecma2Framework
                     catch (Exception ex)
                     {
                         logger.Error(ex, "Could not deserialize watermark");
+                    }
+                }
+
+                var initializers = InterfaceManager.GetInstancesOfType<IConnectionInitializer>();
+
+                if (initializers != null)
+                {
+                    foreach (var initializer in initializers)
+                    {
+                        logger.Info("Launching initializer");
+                        AsyncHelper.RunSync(initializer.InitializeImportAsync(this.importContext));
+                        logger.Info("Initializer complete");
                     }
                 }
 

@@ -5,6 +5,7 @@ using System.Diagnostics;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
+using Lithnet.Ecma2Framework.Interfaces;
 using Microsoft.MetadirectoryServices;
 using NLog;
 
@@ -54,6 +55,19 @@ namespace Lithnet.Ecma2Framework
             {
                 logger.Info("Starting export");
                 this.exportContext.ConnectionContext = await InterfaceManager.GetProviderOrDefault<IConnectionContextProvider>()?.GetConnectionContextAsync(configParameters, ConnectionContextOperationType.Export);
+
+                var initializers = InterfaceManager.GetInstancesOfType<IConnectionInitializer>();
+
+                if (initializers != null)
+                {
+                    foreach (var initializer in initializers)
+                    {
+                        logger.Info("Launching initializer");
+                        await initializer.InitializeExportAsync(this.exportContext);
+                        logger.Info("Initializer complete");
+                    }
+                }
+
                 await this.InitializeProvidersAsync(this.exportContext);
                 this.exportContext.Timer.Start();
             }
