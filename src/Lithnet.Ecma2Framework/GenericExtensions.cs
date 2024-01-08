@@ -22,18 +22,5 @@ namespace Lithnet.Ecma2Framework
                 Marshal.ZeroFreeGlobalAllocUnicode(unmanagedString);
             }
         }
-
-        public static Exception UnwrapIfSingleAggregateException(this Exception ex)
-        {
-            if (ex is AggregateException aex)
-            {
-                if (aex.InnerExceptions.Count == 1)
-                {
-                    return aex.InnerException;
-                }
-            }
-
-            return ex;
-        }
     }
 }

@@ -77,7 +77,7 @@ namespace Lithnet.Ecma2Framework
             catch (Exception ex)
             {
                 logger.Error($"Error setting password for {csentry.DN}");
-                logger.Error(ex.UnwrapIfSingleAggregateException());
+                logger.Error(ex);
                 throw;
             }
         }
@@ -93,7 +93,7 @@ namespace Lithnet.Ecma2Framework
             catch (Exception ex)
             {
                 logger.Error($"Error changing password for {csentry.DN}");
-                logger.Error(ex.UnwrapIfSingleAggregateException());
+                logger.Error(ex);
                 throw;
             }
         }
@@ -103,7 +103,7 @@ namespace Lithnet.Ecma2Framework
             IObjectPasswordProviderAsync asyncProvider = this.GetAsyncProviderForType(csentry);
             if (asyncProvider != null)
             {
-                asyncProvider.SetPasswordAsync(csentry, newPassword, options);
+                AsyncHelper.RunSync(asyncProvider.SetPasswordAsync(csentry, newPassword, options));
             }
             else
             {

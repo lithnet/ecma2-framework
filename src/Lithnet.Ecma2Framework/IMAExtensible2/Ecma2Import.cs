@@ -58,7 +58,7 @@ namespace Lithnet.Ecma2Framework
             }
             catch (Exception ex)
             {
-                logger.Error(ex.UnwrapIfSingleAggregateException());
+                logger.Error(ex);
                 throw;
             }
 
@@ -172,7 +172,7 @@ namespace Lithnet.Ecma2Framework
                 catch (Exception ex)
                 {
                     logger.Info("Producer thread encountered an exception");
-                    logger.Error(ex.UnwrapIfSingleAggregateException());
+                    logger.Error(ex);
                     throw;
                 }
                 finally

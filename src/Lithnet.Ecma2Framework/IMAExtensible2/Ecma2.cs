@@ -31,7 +31,7 @@ namespace Lithnet.Ecma2Framework
             }
             catch (Exception ex)
             {
-                logger.Error(ex.UnwrapIfSingleAggregateException(), "Could not retrieve schema");
+                logger.Error(ex, "Could not retrieve schema");
                 throw;
             }
         }
@@ -60,7 +60,7 @@ namespace Lithnet.Ecma2Framework
             }
             catch (Exception ex)
             {
-                logger.Error(ex.UnwrapIfSingleAggregateException(), "Could not get config parameters");
+                logger.Error(ex, "Could not get config parameters");
                 throw;
             }
         }
@@ -81,7 +81,7 @@ namespace Lithnet.Ecma2Framework
             }
             catch (Exception ex)
             {
-                logger.Error(ex.UnwrapIfSingleAggregateException(), "Could not validate config parameters");
+                logger.Error(ex, "Could not validate config parameters");
                 throw;
             }
         }
@@ -96,7 +96,7 @@ namespace Lithnet.Ecma2Framework
             }
             catch (Exception ex)
             {
-                logger.Error(ex.UnwrapIfSingleAggregateException(), "Could not get capabilities");
+                logger.Error(ex, "Could not get capabilities");
                 throw;
             }
         }

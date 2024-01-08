@@ -69,7 +69,7 @@ namespace Lithnet.Ecma2Framework
             }
             catch (Exception ex)
             {
-                logger.Error(ex.UnwrapIfSingleAggregateException());
+                logger.Error(ex);
                 throw;
             }
         }
@@ -101,8 +101,8 @@ namespace Lithnet.Ecma2Framework
                 }
                 catch (Exception ex)
                 {
-                    logger.Error(ex.UnwrapIfSingleAggregateException(), $"An error occurred exporting record {record}");
-                    result = CSEntryChangeResult.Create(csentry.Identifier, null, MAExportError.ExportErrorCustomContinueRun, ex.UnwrapIfSingleAggregateException().Message, ex.UnwrapIfSingleAggregateException().ToString());
+                    logger.Error(ex, $"An error occurred exporting record {record}");
+                    result = CSEntryChangeResult.Create(csentry.Identifier, null, MAExportError.ExportErrorCustomContinueRun, ex.Message, ex.ToString());
                 }
                 finally
                 {
