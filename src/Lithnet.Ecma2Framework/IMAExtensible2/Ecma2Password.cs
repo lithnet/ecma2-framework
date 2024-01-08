@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.Linq;
 using System.Security;
+using System.Threading.Tasks;
 using Microsoft.MetadirectoryServices;
 using NLog;
 
@@ -15,31 +16,12 @@ namespace Lithnet.Ecma2Framework
 
         private static List<IObjectPasswordProvider> providerCache;
 
-        private static List<IObjectPasswordProviderAsync> asyncProviderCache;
-
         private static List<IObjectPasswordProvider> Providers
         {
             get
             {
-                if (Ecma2Password.providerCache == null)
-                {
-                    Ecma2Password.providerCache = InterfaceManager.GetInstancesOfType<IObjectPasswordProvider>().ToList();
-                }
-
+                Ecma2Password.providerCache ??= InterfaceManager.GetInstancesOfType<IObjectPasswordProvider>().ToList();
                 return Ecma2Password.providerCache;
-            }
-        }
-
-        private static List<IObjectPasswordProviderAsync> AsyncProviders
-        {
-            get
-            {
-                if (Ecma2Password.asyncProviderCache == null)
-                {
-                    Ecma2Password.asyncProviderCache = InterfaceManager.GetInstancesOfType<IObjectPasswordProviderAsync>().ToList();
-                }
-
-                return Ecma2Password.asyncProviderCache;
             }
         }
 
@@ -47,14 +29,19 @@ namespace Lithnet.Ecma2Framework
 
         public void OpenPasswordConnection(KeyedCollection<string, ConfigParameter> configParameters, Partition partition)
         {
+            AsyncHelper.RunSync(this.OpenPasswordConnectionAsync(configParameters, partition));
+        }
+
+        private async Task OpenPasswordConnectionAsync(KeyedCollection<string, ConfigParameter> configParameters, Partition partition)
+        {
             Logging.SetupLogger(configParameters);
             this.passwordContext = new PasswordContext()
             {
-                ConnectionContext = InterfaceManager.GetProviderOrDefault<IConnectionContextProvider>()?.GetConnectionContext(configParameters, ConnectionContextOperationType.Password),
+                ConnectionContext = await InterfaceManager.GetProviderOrDefault<IConnectionContextProvider>()?.GetConnectionContextAsync(configParameters, ConnectionContextOperationType.Password),
                 ConfigParameters = configParameters
             };
 
-            this.InitializeProviders(this.passwordContext);
+            await this.InitializeProvidersAsync(this.passwordContext);
         }
 
         public void ClosePasswordConnection()
@@ -71,7 +58,7 @@ namespace Lithnet.Ecma2Framework
             try
             {
                 logger.Trace($"Setting password for: {csentry.DN}");
-                this.SetPasswordWithProvider(csentry, newPassword, options);
+                AsyncHelper.RunSync(this.SetPasswordWithProviderAsync(csentry, newPassword, options));
                 logger.Info($"Successfully set password for: {csentry.DN}");
             }
             catch (Exception ex)
@@ -87,7 +74,7 @@ namespace Lithnet.Ecma2Framework
             try
             {
                 logger.Info($"Changing password for: {csentry.DN}");
-                this.ChangePasswordWithProvider(csentry, oldPassword, newPassword);
+                AsyncHelper.RunSync(this.ChangePasswordWithProviderAsync(csentry, oldPassword, newPassword));
                 logger.Info($"Successfully changed password for: {csentry.DN}");
             }
             catch (Exception ex)
@@ -98,52 +85,23 @@ namespace Lithnet.Ecma2Framework
             }
         }
 
-        private void SetPasswordWithProvider(CSEntry csentry, SecureString newPassword, PasswordOptions options)
+        private async Task SetPasswordWithProviderAsync(CSEntry csentry, SecureString newPassword, PasswordOptions options)
         {
-            IObjectPasswordProviderAsync asyncProvider = this.GetAsyncProviderForType(csentry);
-            if (asyncProvider != null)
-            {
-                AsyncHelper.RunSync(asyncProvider.SetPasswordAsync(csentry, newPassword, options));
-            }
-            else
-            {
-                IObjectPasswordProvider provider = this.GetProviderForType(csentry);
-                provider.SetPassword(csentry, newPassword, options);
-            }
+            IObjectPasswordProvider provider = await this.GetProviderForTypeAsync(csentry);
+            await provider.SetPasswordAsync(csentry, newPassword, options);
         }
 
-        private void ChangePasswordWithProvider(CSEntry csentry, SecureString oldPassword, SecureString newPassword)
+        private async Task ChangePasswordWithProviderAsync(CSEntry csentry, SecureString oldPassword, SecureString newPassword)
         {
-            IObjectPasswordProviderAsync asyncProvider = this.GetAsyncProviderForType(csentry);
-            if (asyncProvider != null)
-            {
-                AsyncHelper.RunSync(asyncProvider.ChangePasswordAsync(csentry, oldPassword, newPassword));
-            }
-            else
-            {
-                IObjectPasswordProvider provider = this.GetProviderForType(csentry);
-                provider.ChangePassword(csentry, oldPassword, newPassword);
-            }
+            IObjectPasswordProvider provider = await this.GetProviderForTypeAsync(csentry);
+            await provider.ChangePasswordAsync(csentry, oldPassword, newPassword);
         }
 
-        private IObjectPasswordProviderAsync GetAsyncProviderForType(CSEntry csentry)
-        {
-            foreach (IObjectPasswordProviderAsync provider in Ecma2Password.AsyncProviders)
-            {
-                if (provider.CanPerformPasswordOperation(csentry))
-                {
-                    return provider;
-                }
-            }
-
-            return null;
-        }
-
-        private IObjectPasswordProvider GetProviderForType(CSEntry csentry)
+        private async Task<IObjectPasswordProvider> GetProviderForTypeAsync(CSEntry csentry)
         {
             foreach (IObjectPasswordProvider provider in Ecma2Password.Providers)
             {
-                if (provider.CanPerformPasswordOperation(csentry))
+                if (await provider.CanPerformPasswordOperationAsync(csentry))
                 {
                     return provider;
                 }
@@ -152,16 +110,11 @@ namespace Lithnet.Ecma2Framework
             throw new InvalidOperationException($"An export provider for the type '{csentry.ObjectType}' could not be found");
         }
 
-        private void InitializeProviders(PasswordContext context)
+        private async Task InitializeProvidersAsync(PasswordContext context)
         {
-            foreach (var provider in AsyncProviders)
-            {
-                provider.Initialize(context);
-            }
-
             foreach (var provider in Providers)
             {
-                provider.Initialize(context);
+                await provider.InitializeAsync(context);
             }
         }
     }

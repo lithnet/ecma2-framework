@@ -1,13 +1,14 @@
-﻿using Microsoft.MetadirectoryServices;
+﻿using System.Threading.Tasks;
+using Microsoft.MetadirectoryServices;
 
 namespace Lithnet.Ecma2Framework
 {
     public interface IObjectExportProvider
     {
-        void Initialize(IExportContext context);
+        Task InitializeAsync(IExportContext context);
 
-        bool CanExport(CSEntryChange csentry);
+        Task<bool> CanExportAsync(CSEntryChange csentry);
 
-        CSEntryChangeResult PutCSEntryChange(CSEntryChange csentry);
+        Task<CSEntryChangeResult> PutCSEntryChangeAsync(CSEntryChange csentry);
     }
 }

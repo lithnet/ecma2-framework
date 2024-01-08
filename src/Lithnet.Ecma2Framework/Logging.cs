@@ -71,7 +71,7 @@ namespace Lithnet.Ecma2Framework
             // Implementation will handle its own logging
             if (settingsProvider?.HandleOwnLogConfiguration ?? false)
             {
-                logConfiguration = settingsProvider?.GetCustomLogConfiguration(configParameters);
+                logConfiguration = AsyncHelper.RunSync(settingsProvider?.GetCustomLogConfigurationAsync(configParameters));
                 LogManager.Configuration = logConfiguration;
                 LogManager.ReconfigExistingLoggers();
                 return;

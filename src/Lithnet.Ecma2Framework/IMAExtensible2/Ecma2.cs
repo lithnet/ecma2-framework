@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
+using System.Threading.Tasks;
 using Microsoft.MetadirectoryServices;
 using NLog;
 
@@ -16,18 +17,23 @@ namespace Lithnet.Ecma2Framework
 
         public Schema GetSchema(KeyedCollection<string, ConfigParameter> configParameters)
         {
+            return AsyncHelper.RunSync(this.GetSchemaAsync(configParameters));
+        }
+
+        private async Task<Schema> GetSchemaAsync(KeyedCollection<string, ConfigParameter> configParameters)
+        {
             try
             {
                 Logging.SetupLogger(configParameters);
                 SchemaContext context = new SchemaContext()
                 {
                     ConfigParameters = configParameters,
-                    ConnectionContext = InterfaceManager.GetProviderOrDefault<IConnectionContextProvider>()?.GetConnectionContext(configParameters, ConnectionContextOperationType.Schema)
+                    ConnectionContext = await InterfaceManager.GetProviderOrDefault<IConnectionContextProvider>()?.GetConnectionContextAsync(configParameters, ConnectionContextOperationType.Schema)
                 };
 
                 ISchemaProvider provider = InterfaceManager.GetProviderOrThrow<ISchemaProvider>();
 
-                return provider.GetMmsSchema(context);
+                return await provider.GetMmsSchemaAsync(context);
             }
             catch (Exception ex)
             {
@@ -38,52 +44,12 @@ namespace Lithnet.Ecma2Framework
 
         public IList<ConfigParameterDefinition> GetConfigParameters(KeyedCollection<string, ConfigParameter> configParameters, ConfigParameterPage page)
         {
-            try
-            {
-                Logging.SetupLogger(configParameters);
-
-                var configParameterDefinitions = new List<ConfigParameterDefinition>();
-                Logging.AddBuiltInLoggingParameters(page, configParameterDefinitions);
-                IConfigParametersProvider provider = InterfaceManager.GetProviderOrDefault<IConfigParametersProvider>();
-
-                if (provider == null)
-                {
-                    var providerEx = InterfaceManager.GetProviderOrDefault<IConfigParametersProviderEx>();
-                    providerEx?.GetConfigParametersEx(configParameters, configParameterDefinitions, page, 1);
-                }
-                else
-                {
-                    provider.GetConfigParameters(configParameters, configParameterDefinitions, page);
-                }
-
-                return configParameterDefinitions;
-            }
-            catch (Exception ex)
-            {
-                logger.Error(ex, "Could not get config parameters");
-                throw;
-            }
+            return this.GetConfigParametersEx(configParameters, page, 1);
         }
 
         public ParameterValidationResult ValidateConfigParameters(KeyedCollection<string, ConfigParameter> configParameters, ConfigParameterPage page)
         {
-            try
-            {
-                var result = Logging.ValidateBuiltInLoggingParameters(configParameters, page);
-
-                if (result != null)
-                {
-                    return result;
-                }
-
-                IConfigParametersProvider provider = InterfaceManager.GetProviderOrDefault<IConfigParametersProvider>();
-                return provider?.ValidateConfigParameters(configParameters, page) ?? new ParameterValidationResult();
-            }
-            catch (Exception ex)
-            {
-                logger.Error(ex, "Could not validate config parameters");
-                throw;
-            }
+            return this.ValidateConfigParametersEx(configParameters, page, 1);
         }
 
         public MACapabilities GetCapabilitiesEx(KeyedCollection<string, ConfigParameter> configParameters)
@@ -92,7 +58,7 @@ namespace Lithnet.Ecma2Framework
             {
                 Logging.SetupLogger(configParameters);
                 ICapabilitiesProvider provider = InterfaceManager.GetProviderOrThrow<ICapabilitiesProvider>();
-                return provider.GetCapabilitiesEx(configParameters);
+                return AsyncHelper.RunSync(provider.GetCapabilitiesExAsync(configParameters));
             }
             catch (Exception ex)
             {
@@ -103,45 +69,52 @@ namespace Lithnet.Ecma2Framework
 
         public IList<ConfigParameterDefinition> GetConfigParametersEx(KeyedCollection<string, ConfigParameter> configParameters, ConfigParameterPage page, int pageNumber)
         {
-            IConfigParametersProviderEx provider = InterfaceManager.GetProviderOrDefault<IConfigParametersProviderEx>();
-
-            if (provider == null)
+            try
             {
-                if (pageNumber > 1)
+                Logging.SetupLogger(configParameters);
+
+                var configParameterDefinitions = new List<ConfigParameterDefinition>();
+
+                if (pageNumber == 1)
                 {
-                    return null;
+                    Logging.AddBuiltInLoggingParameters(page, configParameterDefinitions);
                 }
 
-                return this.GetConfigParameters(configParameters, page);
+                IConfigParametersProviderEx provider = InterfaceManager.GetProviderOrDefault<IConfigParametersProviderEx>();
+
+                if (provider != null)
+                {
+                    AsyncHelper.RunSync(provider.GetConfigParametersExAsync(configParameters, configParameterDefinitions, page, pageNumber));
+                }
+
+                return configParameterDefinitions;
             }
-
-            var configParameterDefinitions = new List<ConfigParameterDefinition>();
-
-            if (pageNumber == 1)
+            catch (Exception ex)
             {
-                Logging.AddBuiltInLoggingParameters(page, configParameterDefinitions);
+                logger.Error(ex, "Could not get config parameters");
+                throw;
+
             }
-
-            provider.GetConfigParametersEx(configParameters, configParameterDefinitions, page, pageNumber);
-
-            return configParameterDefinitions;
         }
 
         public ParameterValidationResult ValidateConfigParametersEx(KeyedCollection<string, ConfigParameter> configParameters, ConfigParameterPage page, int pageNumber)
         {
-            IConfigParametersProviderEx provider = InterfaceManager.GetProviderOrDefault<IConfigParametersProviderEx>();
-
-            if (provider == null)
+            try
             {
-                if (pageNumber > 1)
+                IConfigParametersProviderEx provider = InterfaceManager.GetProviderOrDefault<IConfigParametersProviderEx>();
+
+                if (provider != null)
                 {
-                    return null;
+                    return AsyncHelper.RunSync(provider.ValidateConfigParametersExAsync(configParameters, page, pageNumber));
                 }
 
-                return this.ValidateConfigParameters(configParameters, page);
+                return new ParameterValidationResult();
             }
-
-            return provider.ValidateConfigParametersEx(configParameters, page, pageNumber);
+            catch (Exception ex)
+            {
+                logger.Error(ex, "Could not validate config parameters");
+                throw;
+            }
         }
     }
 }

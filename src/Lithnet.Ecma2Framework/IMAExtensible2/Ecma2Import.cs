@@ -38,7 +38,7 @@ namespace Lithnet.Ecma2Framework
             {
                 logger.Info("Starting {0} import", this.importContext.InDelta ? "delta" : "full");
 
-                this.importContext.ConnectionContext = InterfaceManager.GetProviderOrDefault<IConnectionContextProvider>()?.GetConnectionContext(configParameters, ConnectionContextOperationType.Import);
+                this.importContext.ConnectionContext = AsyncHelper.RunSync(InterfaceManager.GetProviderOrDefault<IConnectionContextProvider>()?.GetConnectionContextAsync(configParameters, ConnectionContextOperationType.Import));
 
                 if (!string.IsNullOrEmpty(importRunStep.CustomData))
                 {
@@ -54,7 +54,7 @@ namespace Lithnet.Ecma2Framework
 
                 this.importContext.Timer.Start();
 
-                this.StartCreatingCSEntryChanges(this.importContext);
+                this.StartCreatingCSEntryChanges();
             }
             catch (Exception ex)
             {
@@ -120,54 +120,34 @@ namespace Lithnet.Ecma2Framework
             }
         }
 
-        private void StartCreatingCSEntryChanges(ImportContext context)
+        private void StartCreatingCSEntryChanges()
         {
-            if (context == null)
-            {
-                throw new ArgumentNullException(nameof(context));
-            }
-
             logger.Info("Starting producer thread");
 
-            context.Producer = new Task(() =>
+            this.importContext.Producer = new Task(async () =>
             {
                 try
                 {
                     List<Task> taskList = new List<Task>();
 
-                    foreach (SchemaType type in context.Types.Types)
+                    foreach (SchemaType type in this.importContext.Types.Types)
                     {
-                        IObjectImportProviderAsync asyncProvider = this.GetAsyncProviderForType(type);
+                        IObjectImportProvider provider = await this.GetProviderForTypeAsync(type);
 
-                        if (asyncProvider != null)
+                        taskList.Add(Task.Run(async () =>
                         {
-                            taskList.Add(Task.Run(() =>
-                           {
-                               logger.Info($"Starting async import of type {type.Name}");
-                               asyncProvider.Initialize(context);
-                               AsyncHelper.RunSync(asyncProvider.GetCSEntryChangesAsync(type));
-                               logger.Info($"Async import of type {type.Name} completed");
-                           }, context.CancellationTokenSource.Token));
-                        }
-                        else
-                        {
-                            IObjectImportProvider provider = this.GetProviderForType(type);
-
-                            taskList.Add(Task.Run(() =>
-                            {
-                                logger.Info($"Starting import of type {type.Name}");
-                                provider.Initialize(context);
-                                provider.GetCSEntryChanges(type);
-                                logger.Info($"Import of type {type.Name} completed");
-                            }, context.CancellationTokenSource.Token));
-                        }
+                            logger.Info($"Starting import of type {type.Name}");
+                            await provider.InitializeAsync(this.importContext);
+                            await provider.GetCSEntryChangesAsync(type);
+                            logger.Info($"Import of type {type.Name} completed");
+                        }, this.importContext.CancellationTokenSource.Token));
                     }
 
-                    Task.WaitAll(taskList.ToArray(), context.CancellationTokenSource.Token);
+                    Task.WaitAll(taskList.ToArray(), this.importContext.CancellationTokenSource.Token);
                 }
                 catch (OperationCanceledException)
                 {
-                    logger.Info("Producer thread canceled");
+                    logger.Info("Producer thread cancelled");
                 }
                 catch (Exception ex)
                 {
@@ -177,39 +157,26 @@ namespace Lithnet.Ecma2Framework
                 }
                 finally
                 {
-                    context.ProducerDuration = context.Timer.Elapsed;
+                    this.importContext.ProducerDuration = this.importContext.Timer.Elapsed;
                     logger.Info("CSEntryChange production complete");
-                    context.ImportItems.CompleteAdding();
+                    this.importContext.ImportItems.CompleteAdding();
                 }
             });
 
-            context.Producer.Start();
+            this.importContext.Producer.Start();
         }
 
-        private IObjectImportProvider GetProviderForType(SchemaType type)
+        private async Task<IObjectImportProvider> GetProviderForTypeAsync(SchemaType type)
         {
             foreach (IObjectImportProvider provider in InterfaceManager.GetInstancesOfType<IObjectImportProvider>())
             {
-                if (provider.CanImport(type))
+                if (await provider.CanImportAsync(type))
                 {
                     return provider;
                 }
             }
 
             throw new InvalidOperationException($"An import provider for the type '{type.Name}' could not be found");
-        }
-
-        private IObjectImportProviderAsync GetAsyncProviderForType(SchemaType type)
-        {
-            foreach (IObjectImportProviderAsync provider in InterfaceManager.GetInstancesOfType<IObjectImportProviderAsync>())
-            {
-                if (provider.CanImport(type))
-                {
-                    return provider;
-                }
-            }
-
-            return null;
         }
 
         private GetImportEntriesResults ConsumePageFromProducer()

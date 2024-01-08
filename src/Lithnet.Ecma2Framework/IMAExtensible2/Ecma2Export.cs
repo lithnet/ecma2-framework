@@ -17,8 +17,6 @@ namespace Lithnet.Ecma2Framework
 
         private static List<IObjectExportProvider> providerCache;
 
-        private static List<IObjectExportProviderAsync> asyncProviderCache;
-
         private static List<IObjectExportProvider> Providers
         {
             get
@@ -32,19 +30,6 @@ namespace Lithnet.Ecma2Framework
             }
         }
 
-        private static List<IObjectExportProviderAsync> AsyncProviders
-        {
-            get
-            {
-                if (Ecma2Export.asyncProviderCache == null)
-                {
-                    Ecma2Export.asyncProviderCache = InterfaceManager.GetInstancesOfType<IObjectExportProviderAsync>().ToList();
-                }
-
-                return Ecma2Export.asyncProviderCache;
-            }
-        }
-
         private ExportContext exportContext;
 
         public int ExportDefaultPageSize => 100;
@@ -52,6 +37,11 @@ namespace Lithnet.Ecma2Framework
         public int ExportMaxPageSize => 9999;
 
         public void OpenExportConnection(KeyedCollection<string, ConfigParameter> configParameters, Schema types, OpenExportConnectionRunStep exportRunStep)
+        {
+            AsyncHelper.RunSync(this.OpenExportConnectionAsync(configParameters, types, exportRunStep));
+        }
+
+        private async Task OpenExportConnectionAsync(KeyedCollection<string, ConfigParameter> configParameters, Schema types, OpenExportConnectionRunStep exportRunStep)
         {
             Logging.SetupLogger(configParameters);
 
@@ -63,8 +53,8 @@ namespace Lithnet.Ecma2Framework
             try
             {
                 logger.Info("Starting export");
-                this.exportContext.ConnectionContext = InterfaceManager.GetProviderOrDefault<IConnectionContextProvider>()?.GetConnectionContext(configParameters, ConnectionContextOperationType.Export);
-                this.InitializeProviders(this.exportContext);
+                this.exportContext.ConnectionContext = await InterfaceManager.GetProviderOrDefault<IConnectionContextProvider>()?.GetConnectionContextAsync(configParameters, ConnectionContextOperationType.Export);
+                await this.InitializeProvidersAsync(this.exportContext);
                 this.exportContext.Timer.Start();
             }
             catch (Exception ex)
@@ -84,7 +74,7 @@ namespace Lithnet.Ecma2Framework
                 CancellationToken = this.exportContext.Token
             };
 
-            Parallel.ForEach(csentries, po, (csentry) =>
+            Parallel.ForEach(csentries, po, async (csentry) =>
             {
                 Stopwatch timer = new Stopwatch();
 
@@ -97,7 +87,7 @@ namespace Lithnet.Ecma2Framework
                 try
                 {
                     timer.Start();
-                    result = this.PutCSEntryChange(csentry);
+                    result = await this.PutCSEntryChangeAsync(csentry);
                 }
                 catch (Exception ex)
                 {
@@ -128,26 +118,17 @@ namespace Lithnet.Ecma2Framework
             return results;
         }
 
-        private CSEntryChangeResult PutCSEntryChange(CSEntryChange csentry)
+        private async Task<CSEntryChangeResult> PutCSEntryChangeAsync(CSEntryChange csentry)
         {
-            IObjectExportProviderAsync providerAsync = this.GetAsyncProviderForType(csentry);
-
-            if (providerAsync != null)
-            {
-                return AsyncHelper.RunSync(providerAsync.PutCSEntryChangeAsync(csentry), this.exportContext.Token);
-            }
-            else
-            {
-                IObjectExportProvider provider = this.GetProviderForType(csentry);
-                return provider.PutCSEntryChange(csentry);
-            }
+            IObjectExportProvider provider = await this.GetProviderForTypeAsync(csentry);
+            return await provider.PutCSEntryChangeAsync(csentry);
         }
 
-        private IObjectExportProvider GetProviderForType(CSEntryChange csentry)
+        private async Task<IObjectExportProvider> GetProviderForTypeAsync(CSEntryChange csentry)
         {
             foreach (IObjectExportProvider provider in Ecma2Export.Providers)
             {
-                if (provider.CanExport(csentry))
+                if (await provider.CanExportAsync(csentry))
                 {
                     return provider;
                 }
@@ -156,29 +137,11 @@ namespace Lithnet.Ecma2Framework
             throw new InvalidOperationException($"An export provider for the type '{csentry.ObjectType}' could not be found");
         }
 
-        private IObjectExportProviderAsync GetAsyncProviderForType(CSEntryChange csentry)
+        private async Task InitializeProvidersAsync(ExportContext context)
         {
-            foreach (IObjectExportProviderAsync provider in Ecma2Export.AsyncProviders)
-            {
-                if (provider.CanExport(csentry))
-                {
-                    return provider;
-                }
-            }
-
-            return null;
-        }
-
-        private void InitializeProviders(ExportContext context)
-        {
-            foreach (var provider in AsyncProviders)
-            {
-                provider.Initialize(context);
-            }
-
             foreach (var provider in Providers)
             {
-                provider.Initialize(context);
+                await provider.InitializeAsync(context);
             }
         }
 

@@ -1,10 +1,11 @@
 ﻿using System.Collections.ObjectModel;
+using System.Threading.Tasks;
 using Microsoft.MetadirectoryServices;
 
 namespace Lithnet.Ecma2Framework
 {
     public interface ICapabilitiesProvider
     {
-        MACapabilities GetCapabilitiesEx(KeyedCollection<string, ConfigParameter> configParameters);
+        Task<MACapabilities> GetCapabilitiesExAsync(KeyedCollection<string, ConfigParameter> configParameters);
     }
 }
