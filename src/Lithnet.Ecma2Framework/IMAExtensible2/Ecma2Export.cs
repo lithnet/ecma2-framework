@@ -87,7 +87,7 @@ namespace Lithnet.Ecma2Framework
                 CancellationToken = this.exportContext.Token
             };
 
-            Parallel.ForEach(csentries, po, async (csentry) =>
+            Parallel.ForEach(csentries, po, (csentry) =>
             {
                 Stopwatch timer = new Stopwatch();
 
@@ -100,7 +100,7 @@ namespace Lithnet.Ecma2Framework
                 try
                 {
                     timer.Start();
-                    result = await this.PutCSEntryChangeAsync(csentry);
+                    result = AsyncHelper.RunSync(this.PutCSEntryChangeAsync(csentry));
                 }
                 catch (Exception ex)
                 {
