@@ -3,5 +3,7 @@
     public interface IPasswordContext : IConfigParameterContext
     {
         IConnectionContext ConnectionContext { get; }
+
+        object CustomData { get; set; }
     }
 }

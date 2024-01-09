@@ -4,7 +4,6 @@ using System.Collections.ObjectModel;
 using System.Linq;
 using System.Security;
 using System.Threading.Tasks;
-using Lithnet.Ecma2Framework.Interfaces;
 using Microsoft.MetadirectoryServices;
 using NLog;
 

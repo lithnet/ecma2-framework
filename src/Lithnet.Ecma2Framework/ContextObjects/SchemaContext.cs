@@ -8,5 +8,7 @@ namespace Lithnet.Ecma2Framework
         public IConnectionContext ConnectionContext { get; internal set; }
 
         public KeyedCollection<string, ConfigParameter> ConfigParameters { get; internal set; }
+
+        public object CustomData { get; set; }
     }
 }

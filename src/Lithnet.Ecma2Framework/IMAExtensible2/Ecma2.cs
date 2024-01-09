@@ -10,8 +10,7 @@ namespace Lithnet.Ecma2Framework
     public class Ecma2 :
         IMAExtensible2GetSchema,
         IMAExtensible2GetCapabilitiesEx,
-        IMAExtensible2GetParametersEx,
-        IMAExtensible2GetParameters
+        IMAExtensible2GetParametersEx
     {
         private static readonly Logger logger = LogManager.GetCurrentClassLogger();
 
@@ -40,16 +39,6 @@ namespace Lithnet.Ecma2Framework
                 logger.Error(ex, "Could not retrieve schema");
                 throw;
             }
-        }
-
-        public IList<ConfigParameterDefinition> GetConfigParameters(KeyedCollection<string, ConfigParameter> configParameters, ConfigParameterPage page)
-        {
-            return this.GetConfigParametersEx(configParameters, page, 1);
-        }
-
-        public ParameterValidationResult ValidateConfigParameters(KeyedCollection<string, ConfigParameter> configParameters, ConfigParameterPage page)
-        {
-            return this.ValidateConfigParametersEx(configParameters, page, 1);
         }
 
         public MACapabilities GetCapabilitiesEx(KeyedCollection<string, ConfigParameter> configParameters)

@@ -5,7 +5,6 @@ using System.Diagnostics;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
-using Lithnet.Ecma2Framework.Interfaces;
 using Microsoft.MetadirectoryServices;
 using NLog;
 
