@@ -23,7 +23,7 @@ namespace Lithnet.Ecma2Framework
             {
                 ISettingsProvider settings = InterfaceManager.GetProviderOrDefault<ISettingsProvider>();
 
-                if (!settings?.HandleOwnLogConfiguration ?? false)
+                if (!(settings?.HandleOwnLogConfiguration ?? false))
                 {
                     configParameterDefinitions.Add(ConfigParameterDefinition.CreateStringParameter(Logging.LogFileParameterName, string.Empty));
                     configParameterDefinitions.Add(ConfigParameterDefinition.CreateDropDownParameter(Logging.LogLevelParameterName, LogLevel.AllLevels.Reverse().Select(t => t.Name).ToArray(), false, "Info"));
