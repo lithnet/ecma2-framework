@@ -14,7 +14,7 @@ namespace Lithnet.Ecma2Framework
         {
             try
             {
-                return Assembly.GetExecutingAssembly().GetTypes().Where(t => t.GetInterfaces().Contains(typeof(T)));
+                return Assembly.GetExecutingAssembly().GetTypes().Where(t => t.GetInterfaces().Contains(typeof(T)) && !t.IsAbstract);
             }
             catch (ReflectionTypeLoadException ex)
             {

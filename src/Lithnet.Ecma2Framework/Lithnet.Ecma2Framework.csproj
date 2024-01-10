@@ -39,11 +39,13 @@
 	</PropertyGroup>
 
 	<ItemGroup>
+		<PackageReference Include="System.Interactive.Async" Version="6.0.1" />
+		<PackageReference Include="Microsoft.Bcl.AsyncInterfaces" Version="8.0.0" />
 		<PackageReference Include="Microsoft.SourceLink.GitHub" Version="8.0.0">
 			<PrivateAssets>all</PrivateAssets>
 			<IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
 		</PackageReference>
-		<PackageReference Include="Newtonsoft.Json" Version="13.0.3" >
+		<PackageReference Include="Newtonsoft.Json" Version="13.0.3">
 			<PrivateAssets>all</PrivateAssets>
 		</PackageReference>
 		<PackageReference Include="NLog" Version="4.5.11" />
@@ -51,6 +53,7 @@
 			<PrivateAssets>None</PrivateAssets>
 			<IncludeAssets>All</IncludeAssets>
 		</PackageReference>
+		<PackageReference Include="System.Threading.Tasks.Dataflow" Version="8.0.0" />
 	</ItemGroup>
 
 	<ItemGroup>
@@ -61,8 +64,8 @@
 	</ItemGroup>
 
 	<ItemGroup>
-		<None Include="build\Lithnet.Ecma2Framework.props" Pack="true" PackagePath="build\"/>
-		<None Include="build\Lithnet.Ecma2Framework.targets" Pack="true" PackagePath="build\"/>
+		<None Include="build\Lithnet.Ecma2Framework.props" Pack="true" PackagePath="build\" />
+		<None Include="build\Lithnet.Ecma2Framework.targets" Pack="true" PackagePath="build\" />
 	</ItemGroup>
 </Project>
 
