@@ -63,6 +63,7 @@ namespace Lithnet.Ecma2Framework
 
                 try
                 {
+                    await this.PrepareObjectForImportAsync(item).ConfigureAwait(false);
                     CSEntryChange c = await this.CreateCSEntryChange(type, item).ConfigureAwait(false);
 
                     if (c != null)
@@ -85,6 +86,11 @@ namespace Lithnet.Ecma2Framework
             }
 
             await this.OnCompleteConsumerAsync();
+        }
+
+        protected virtual Task PrepareObjectForImportAsync(TObject item)
+        {
+            return Task.CompletedTask;
         }
 
         protected virtual Task OnInitializeAsync()
