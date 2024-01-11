@@ -29,10 +29,10 @@ namespace Lithnet.Ecma2Framework
                 var items = this.GetObjects();
                 BufferBlock<TObject> queue = new BufferBlock<TObject>();
 
-                Task consumer = this.ConsumeObjects(type, queue);
+                Task consumer = this.ConsumeObjectsAsync(type, queue);
 
                 // Post source data to the dataflow block.
-                await this.ProduceObjects(items, queue).ConfigureAwait(false);
+                await this.ProduceObjectsAsync(items, queue).ConfigureAwait(false);
 
                 // Wait for the consumer to process all data.
                 await consumer.ConfigureAwait(false);
@@ -44,7 +44,7 @@ namespace Lithnet.Ecma2Framework
             }
         }
 
-        private async Task ProduceObjects(IAsyncEnumerable<TObject> items, ITargetBlock<TObject> target)
+        private async Task ProduceObjectsAsync(IAsyncEnumerable<TObject> items, ITargetBlock<TObject> target)
         {
             await this.OnStartProducerAsync();
             await items.ForEachAsync(t => target.Post(t));
@@ -53,7 +53,7 @@ namespace Lithnet.Ecma2Framework
             await this.OnStartProducerAsync();
         }
 
-        private async Task ConsumeObjects(SchemaType type, ISourceBlock<TObject> source)
+        private async Task ConsumeObjectsAsync(SchemaType type, ISourceBlock<TObject> source)
         {
             await this.OnStartConsumerAsync();
 
@@ -64,7 +64,7 @@ namespace Lithnet.Ecma2Framework
                 try
                 {
                     await this.PrepareObjectForImportAsync(item).ConfigureAwait(false);
-                    CSEntryChange c = await this.CreateCSEntryChange(type, item).ConfigureAwait(false);
+                    CSEntryChange c = await this.CreateCSEntryChangeAsync(type, item).ConfigureAwait(false);
 
                     if (c != null)
                     {
@@ -75,7 +75,7 @@ namespace Lithnet.Ecma2Framework
                 {
                     logger.Error(ex);
                     CSEntryChange csentry = CSEntryChange.Create();
-                    csentry.DN = this.GetDN(item);
+                    csentry.DN = await this.GetDNAsync(item);
                     csentry.ErrorCodeImport = MAImportError.ImportErrorCustomContinueRun;
                     csentry.ErrorDetail = ex.StackTrace;
                     csentry.ErrorName = ex.Message;
@@ -86,6 +86,67 @@ namespace Lithnet.Ecma2Framework
             }
 
             await this.OnCompleteConsumerAsync();
+        }
+
+        protected virtual async Task<CSEntryChange> CreateCSEntryChangeAsync(SchemaType schemaType, TObject item)
+        {
+            try
+            {
+                logger.Trace($"Creating CSEntryChange for {item}");
+
+                ObjectModificationType modType = await this.GetObjectModificationTypeAsync(item);
+
+                if (modType == ObjectModificationType.None)
+                {
+                    return null;
+                }
+
+                CSEntryChange c = CSEntryChange.Create();
+                c.ObjectType = schemaType.Name;
+                c.ObjectModificationType = modType;
+                c.DN = await this.GetDNAsync(item);
+
+                await this.OnPrepareCSEntryChangeAsync(c);
+
+                foreach (var anchor in await this.GetAnchorAttributesAsync(item))
+                {
+                    c.AnchorAttributes.Add(anchor);
+                }
+
+                if (modType == ObjectModificationType.Delete)
+                {
+                    await this.OnFinalizeCsEntryChangeAsync(c);
+                    return c;
+                }
+
+                foreach (SchemaAttribute type in schemaType.Attributes)
+                {
+                    var change = await this.CreateAttributeChangeAsync(type, modType, item);
+
+                    if (change != null)
+                    {
+                        c.AttributeChanges.Add(change);
+                    }
+                }
+
+                await this.OnFinalizeCsEntryChangeAsync(c);
+                return c;
+            }
+            catch (Exception ex)
+            {
+                logger.Error(ex, $"Error creating CSEntryChange for {item}");
+                throw;
+            }
+        }
+
+        protected virtual Task OnFinalizeCsEntryChangeAsync(CSEntryChange centry)
+        {
+            return Task.CompletedTask;
+        }
+
+        protected virtual Task OnPrepareCSEntryChangeAsync(CSEntryChange csentry)
+        {
+            return Task.CompletedTask;
         }
 
         protected virtual Task PrepareObjectForImportAsync(TObject item)
@@ -118,12 +179,14 @@ namespace Lithnet.Ecma2Framework
             return Task.CompletedTask;
         }
 
-        protected abstract string GetDN(TObject item);
+        protected abstract Task<List<AnchorAttribute>> GetAnchorAttributesAsync(TObject item);
 
-        protected abstract Task<CSEntryChange> CreateCSEntryChange(SchemaType schemaType, TObject item);
+        protected abstract Task<AttributeChange> CreateAttributeChangeAsync(SchemaAttribute type, ObjectModificationType modificationType, TObject item);
+
+        protected abstract Task<string> GetDNAsync(TObject item);
 
         protected abstract IAsyncEnumerable<TObject> GetObjects();
 
-        protected abstract ObjectModificationType GetObjectModificationType(TObject item);
+        protected abstract Task<ObjectModificationType> GetObjectModificationTypeAsync(TObject item);
     }
 }
