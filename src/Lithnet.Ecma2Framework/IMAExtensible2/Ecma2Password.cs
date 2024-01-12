@@ -36,11 +36,10 @@ namespace Lithnet.Ecma2Framework
             Logging.SetupLogger(configParameters);
             this.passwordContext = new PasswordContext()
             {
-                ConnectionContext = await InterfaceManager.GetProviderOrDefault<IConnectionContextProvider>()?.GetConnectionContextAsync(configParameters, ConnectionContextOperationType.Password),
                 ConfigParameters = configParameters
             };
 
-            var initializers = InterfaceManager.GetInstancesOfType<IConnectionInitializer>();
+            var initializers = InterfaceManager.GetInstancesOfType<IOperationInitializer>();
 
             if (initializers != null)
             {

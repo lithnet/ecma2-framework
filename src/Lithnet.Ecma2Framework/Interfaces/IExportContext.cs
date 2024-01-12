@@ -6,8 +6,6 @@ namespace Lithnet.Ecma2Framework
     {
         CancellationToken Token { get; }
 
-        IConnectionContext ConnectionContext { get; }
-
         object CustomData { get; set; }
     }
 }

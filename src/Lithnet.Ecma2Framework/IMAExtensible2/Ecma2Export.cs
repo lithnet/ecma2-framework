@@ -79,9 +79,8 @@ namespace Lithnet.Ecma2Framework
             try
             {
                 logger.Info("Starting export");
-                this.exportContext.ConnectionContext = await InterfaceManager.GetProviderOrDefault<IConnectionContextProvider>()?.GetConnectionContextAsync(configParameters, ConnectionContextOperationType.Export);
 
-                var initializers = InterfaceManager.GetInstancesOfType<IConnectionInitializer>();
+                var initializers = InterfaceManager.GetInstancesOfType<IOperationInitializer>();
 
                 if (initializers != null)
                 {

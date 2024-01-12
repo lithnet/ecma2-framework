@@ -31,8 +31,6 @@ namespace Lithnet.Ecma2Framework
 
         public BlockingCollection<CSEntryChange> ImportItems { get; internal set; }
 
-        public IConnectionContext ConnectionContext { get; internal set; }
-
         public object CustomData { get; set; }
 
         internal Stopwatch Timer { get; } = new Stopwatch();

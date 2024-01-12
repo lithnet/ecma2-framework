@@ -36,8 +36,6 @@ namespace Lithnet.Ecma2Framework
             {
                 logger.Info("Starting {0} import", this.importContext.InDelta ? "delta" : "full");
 
-                this.importContext.ConnectionContext = await InterfaceManager.GetProviderOrDefault<IConnectionContextProvider>()?.GetConnectionContextAsync(configParameters, ConnectionContextOperationType.Import);
-
                 if (!string.IsNullOrEmpty(importRunStep.CustomData))
                 {
                     try
@@ -50,7 +48,7 @@ namespace Lithnet.Ecma2Framework
                     }
                 }
 
-                var initializers = InterfaceManager.GetInstancesOfType<IConnectionInitializer>();
+                var initializers = InterfaceManager.GetInstancesOfType<IOperationInitializer>();
 
                 if (initializers != null)
                 {

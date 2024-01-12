@@ -22,11 +22,16 @@ namespace Lithnet.Ecma2Framework
                     ConfigParameters = configParameters,
                 };
 
-                var connectionContextProvider = InterfaceManager.GetProviderOrDefault<IConnectionContextProvider>();
+                var initializers = InterfaceManager.GetInstancesOfType<IOperationInitializer>();
 
-                if (connectionContextProvider != null)
+                if (initializers != null)
                 {
-                    context.ConnectionContext = await connectionContextProvider.GetConnectionContextAsync(configParameters, ConnectionContextOperationType.Schema);
+                    foreach (var initializer in initializers)
+                    {
+                        logger.Info("Launching initializer");
+                        await initializer.InitializeSchemaOperationAsync(context);
+                        logger.Info("Initializer complete");
+                    }
                 }
 
                 ISchemaProvider provider = InterfaceManager.GetProviderOrThrow<ISchemaProvider>();

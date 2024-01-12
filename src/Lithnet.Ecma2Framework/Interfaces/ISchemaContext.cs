@@ -2,8 +2,6 @@
 {
     public interface ISchemaContext : IConfigParameterContext
     {
-        IConnectionContext ConnectionContext { get; }
-
         object CustomData { get; set; }
     }
 }

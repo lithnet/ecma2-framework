@@ -13,8 +13,6 @@ namespace Lithnet.Ecma2Framework
 
         public CancellationToken Token => this.CancellationTokenSource.Token;
 
-        public IConnectionContext ConnectionContext { get; internal set; }
-
         public object CustomData { get; set; }
 
         internal Stopwatch Timer { get; } = new Stopwatch();

@@ -18,8 +18,6 @@ namespace Lithnet.Ecma2Framework
 
         BlockingCollection<CSEntryChange> ImportItems { get; }
 
-        IConnectionContext ConnectionContext { get; }
-
         object CustomData { get; set; }
 
         OpenImportConnectionRunStep RunStep { get; }

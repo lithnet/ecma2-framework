@@ -5,8 +5,6 @@ namespace Lithnet.Ecma2Framework
 {
     public class PasswordContext : IPasswordContext
     {
-        public IConnectionContext ConnectionContext { get; internal set; }
-
         public KeyedCollection<string, ConfigParameter> ConfigParameters { get; internal set; }
 
         public object CustomData { get; set; }
