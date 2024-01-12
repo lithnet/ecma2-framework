@@ -6,16 +6,21 @@
 		<ILRepackTargetsFile Condition="$(ILRepackTargetsFile) == ''">$(ProjectDir)ILRepack.targets</ILRepackTargetsFile>
 	</PropertyGroup>
 
-	<UsingTask AssemblyFile="$(MSBuildThisFileDirectory)ILRepack.Lib.MSBuild.Task.dll" TaskName="ILRepack" />
+	<!--<UsingTask AssemblyFile="$(MSBuildThisFileDirectory)ILRepack.Lib.MSBuild.Task.dll" TaskName="ILRepack" Condition="$(ILRepackEnabled) == 'True'" />-->
 
 	<Import Project="$(ILRepackTargetsFile)" Condition="Exists('$(ILRepackTargetsFile)')" />
 
-	<Target Name="ILRepacker" AfterTargets="Build"  Condition="!Exists('$(ILRepackTargetsFile)')">
+	<Target Name="ILRepacker" AfterTargets="Build" Condition="!Exists('$(ILRepackTargetsFile)') and '$(ILRepackEnabled)' == 'True'">
 
-		<ItemGroup>
+		<ItemGroup Condition="$(ILRepackAll) != 'False'">
 			<InputAssemblies Include="$(OutputPath)$(TargetName)$(TargetExt)"/>
 			<InputAssemblies Include="$(OutputPath)*.dll" Exclude="$(OutputPath)$(TargetName)$(TargetExt)"/>
 			<InputAssemblies Remove="$(OutputPath)Microsoft.MetadirectoryServicesEx.dll"/>
+		</ItemGroup>
+
+		<ItemGroup Condition="$(ILRepackAll) == 'False'">
+			<InputAssemblies Include="$(OutputPath)$(TargetName)$(TargetExt)"/>
+			<InputAssemblies Include="$(OutputPath)Lithnet.Ecma2Framework.dll"/>
 		</ItemGroup>
 
 		<ItemGroup>
@@ -40,7 +45,7 @@
 
 	<Target AfterTargets="ILRepacker"
 				Name="CleanReferenceCopyLocalPaths"
-				Condition="'$(ClearOutputDirectory)' != 'False' and !Exists('$(ILRepackTargetsFile)')">
+				Condition="'$(ClearOutputDirectory)' != 'False' and !Exists('$(ILRepackTargetsFile)') and '$(ILRepackEnabled)' == 'True'">
 		<Delete Files="@(ReferenceCopyLocalPaths->'$(OutDir)%(DestinationSubDirectory)%(Filename)%(Extension)')" />
 		<ItemGroup>
 			<Directories Include="$([System.IO.Directory]::GetDirectories('$(OutDir)%(DestinationSubDirectory)', '*', System.IO.SearchOption.AllDirectories))" />

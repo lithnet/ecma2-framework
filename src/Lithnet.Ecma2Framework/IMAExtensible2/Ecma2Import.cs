@@ -10,34 +10,17 @@ using NLog;
 
 namespace Lithnet.Ecma2Framework
 {
-    public class Ecma2Import : IMAExtensible2CallImport
+    public class Ecma2Import
     {
+        public static bool AttachDebuggerOnLaunch { get; set; } = true;
+
         private static readonly Logger logger = LogManager.GetCurrentClassLogger();
 
         private ImportContext importContext;
 
         private int Batch { get; set; }
 
-        int IMAExtensible2CallImport.ImportDefaultPageSize => 100;
-
-        int IMAExtensible2CallImport.ImportMaxPageSize => 9999;
-
-
-        OpenImportConnectionResults IMAExtensible2CallImport.OpenImportConnection(KeyedCollection<string, ConfigParameter> configParameters, Schema types, OpenImportConnectionRunStep importRunStep)
-        {
-            return AsyncHelper.RunSync(this.OpenImportConnectionAsync(configParameters, types, importRunStep));
-        }
-        GetImportEntriesResults IMAExtensible2CallImport.GetImportEntries(GetImportEntriesRunStep importRunStep)
-        {
-            return AsyncHelper.RunSync(this.GetImportEntriesPageAsync());
-        }
-
-        CloseImportConnectionResults IMAExtensible2CallImport.CloseImportConnection(CloseImportConnectionRunStep importRunStep)
-        {
-            return AsyncHelper.RunSync(this.CloseImportConnectionAsync(importRunStep));
-        }
-
-        private async Task<OpenImportConnectionResults> OpenImportConnectionAsync(KeyedCollection<string, ConfigParameter> configParameters, Schema types, OpenImportConnectionRunStep importRunStep)
+        public async Task<OpenImportConnectionResults> OpenImportConnectionAsync(KeyedCollection<string, ConfigParameter> configParameters, Schema types, OpenImportConnectionRunStep importRunStep)
         {
             Logging.SetupLogger(configParameters);
 
@@ -92,7 +75,7 @@ namespace Lithnet.Ecma2Framework
             return new OpenImportConnectionResults();
         }
 
-        private Task<GetImportEntriesResults> GetImportEntriesPageAsync()
+        public Task<GetImportEntriesResults> GetImportEntriesPageAsync()
         {
             int count = 0;
             bool mayHaveMore = false;
@@ -154,14 +137,14 @@ namespace Lithnet.Ecma2Framework
             return Task.FromResult(results);
         }
 
-        private async Task<CloseImportConnectionResults> CloseImportConnectionAsync(CloseImportConnectionRunStep importRunStep)
+        public Task<CloseImportConnectionResults> CloseImportConnectionAsync(CloseImportConnectionRunStep importRunStep)
         {
             logger.Info("Closing import connection: {0}", importRunStep.Reason);
 
             if (this.importContext == null)
             {
                 logger.Trace("No import context detected");
-                return new CloseImportConnectionResults();
+                return Task.FromResult(new CloseImportConnectionResults());
             }
 
             this.importContext.Timer.Stop();
@@ -196,15 +179,15 @@ namespace Lithnet.Ecma2Framework
             {
                 string wm = JsonConvert.SerializeObject(this.importContext.OutgoingWatermark);
                 logger.Trace($"Watermark: {wm}");
-                return new CloseImportConnectionResults(wm);
+                return Task.FromResult(new CloseImportConnectionResults(wm));
             }
             else
             {
-                return new CloseImportConnectionResults();
+                return Task.FromResult(new CloseImportConnectionResults());
             }
         }
 
-        private async Task StartCreatingCSEntryChangesAsync()
+        private Task StartCreatingCSEntryChangesAsync()
         {
             logger.Info("Starting producer thread");
 
@@ -214,15 +197,7 @@ namespace Lithnet.Ecma2Framework
 
                 foreach (SchemaType type in this.importContext.Types.Types)
                 {
-                    IObjectImportProvider provider = await this.GetProviderForTypeAsync(type);
-
-                    taskList.Add(Task.Run(async () =>
-                    {
-                        logger.Info($"Starting import of type {type.Name}");
-                        await provider.InitializeAsync(this.importContext);
-                        await provider.GetCSEntryChangesAsync(type);
-                        logger.Info($"Import of type {type.Name} completed");
-                    }, this.importContext.CancellationTokenSource.Token));
+                    taskList.Add(this.CreateCSEntryChangesForTypeAsync(type));
                 }
 
                 Task.WaitAll(taskList.ToArray(), this.importContext.CancellationTokenSource.Token);
@@ -243,6 +218,17 @@ namespace Lithnet.Ecma2Framework
                 logger.Info("CSEntryChange production complete");
                 this.importContext.ImportItems.CompleteAdding();
             }
+
+            return Task.CompletedTask;
+        }
+
+        private async Task CreateCSEntryChangesForTypeAsync(SchemaType type)
+        {
+            IObjectImportProvider provider = await this.GetProviderForTypeAsync(type);
+            logger.Info($"Starting import of type {type.Name}");
+            await provider.InitializeAsync(this.importContext);
+            await provider.GetCSEntryChangesAsync(type);
+            logger.Info($"Import of type {type.Name} completed");
         }
 
         private async Task<IObjectImportProvider> GetProviderForTypeAsync(SchemaType type)

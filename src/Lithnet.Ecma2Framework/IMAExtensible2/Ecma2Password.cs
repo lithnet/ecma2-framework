@@ -9,8 +9,7 @@ using NLog;
 
 namespace Lithnet.Ecma2Framework
 {
-    public class Ecma2Password :
-        IMAExtensible2Password
+    public class Ecma2Password
     {
         private static readonly Logger logger = LogManager.GetCurrentClassLogger();
 
@@ -27,12 +26,12 @@ namespace Lithnet.Ecma2Framework
 
         private PasswordContext passwordContext;
 
-        public void OpenPasswordConnection(KeyedCollection<string, ConfigParameter> configParameters, Partition partition)
+        public Task<ConnectionSecurityLevel> GetConnectionSecurityLevelAsync()
         {
-            AsyncHelper.RunSync(this.OpenPasswordConnectionAsync(configParameters, partition));
+            return Task.FromResult(ConnectionSecurityLevel.Secure);
         }
 
-        private async Task OpenPasswordConnectionAsync(KeyedCollection<string, ConfigParameter> configParameters, Partition partition)
+        public async Task OpenPasswordConnectionAsync(KeyedCollection<string, ConfigParameter> configParameters, Partition partition)
         {
             Logging.SetupLogger(configParameters);
             this.passwordContext = new PasswordContext()
@@ -56,21 +55,20 @@ namespace Lithnet.Ecma2Framework
             await this.InitializeProvidersAsync(this.passwordContext);
         }
 
-        public void ClosePasswordConnection()
+
+        public Task ClosePasswordConnectionAsync()
         {
+            return Task.CompletedTask;
         }
 
-        public ConnectionSecurityLevel GetConnectionSecurityLevel()
-        {
-            return ConnectionSecurityLevel.Secure;
-        }
 
-        public void SetPassword(CSEntry csentry, SecureString newPassword, PasswordOptions options)
+        public async Task SetPasswordAsync(CSEntry csentry, SecureString newPassword, PasswordOptions options)
         {
             try
             {
                 logger.Trace($"Setting password for: {csentry.DN}");
-                AsyncHelper.RunSync(this.SetPasswordWithProviderAsync(csentry, newPassword, options));
+                IObjectPasswordProvider provider = await this.GetProviderForTypeAsync(csentry);
+                await provider.SetPasswordAsync(csentry, newPassword, options);
                 logger.Info($"Successfully set password for: {csentry.DN}");
             }
             catch (Exception ex)
@@ -81,12 +79,13 @@ namespace Lithnet.Ecma2Framework
             }
         }
 
-        public void ChangePassword(CSEntry csentry, SecureString oldPassword, SecureString newPassword)
+        public async Task ChangePasswordAsync(CSEntry csentry, SecureString oldPassword, SecureString newPassword)
         {
             try
             {
                 logger.Info($"Changing password for: {csentry.DN}");
-                AsyncHelper.RunSync(this.ChangePasswordWithProviderAsync(csentry, oldPassword, newPassword));
+                IObjectPasswordProvider provider = await this.GetProviderForTypeAsync(csentry);
+                await provider.ChangePasswordAsync(csentry, oldPassword, newPassword);
                 logger.Info($"Successfully changed password for: {csentry.DN}");
             }
             catch (Exception ex)
@@ -95,18 +94,6 @@ namespace Lithnet.Ecma2Framework
                 logger.Error(ex);
                 throw;
             }
-        }
-
-        private async Task SetPasswordWithProviderAsync(CSEntry csentry, SecureString newPassword, PasswordOptions options)
-        {
-            IObjectPasswordProvider provider = await this.GetProviderForTypeAsync(csentry);
-            await provider.SetPasswordAsync(csentry, newPassword, options);
-        }
-
-        private async Task ChangePasswordWithProviderAsync(CSEntry csentry, SecureString oldPassword, SecureString newPassword)
-        {
-            IObjectPasswordProvider provider = await this.GetProviderForTypeAsync(csentry);
-            await provider.ChangePasswordAsync(csentry, oldPassword, newPassword);
         }
 
         private async Task<IObjectPasswordProvider> GetProviderForTypeAsync(CSEntry csentry)

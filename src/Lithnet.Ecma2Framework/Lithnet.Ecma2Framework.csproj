@@ -1,6 +1,6 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk">
 	<PropertyGroup>
-		<TargetFrameworks>net462</TargetFrameworks>
+		<TargetFrameworks>netstandard2.0</TargetFrameworks>
 		<OutputType>Library</OutputType>
 		<PlatformTargets>AnyCPU</PlatformTargets>
 		<Deterministic>true</Deterministic>
@@ -8,18 +8,17 @@
 		<GenerateBindingRedirectsOutputType>true</GenerateBindingRedirectsOutputType>
 		<LangVersion>9</LangVersion>
 		<GeneratePackageOnBuild>true</GeneratePackageOnBuild>
-
-		<!--ILRepack doesn't understand sdk-style project symbols, these two settings are required for debugging support-->
-		<DebugType>pdbonly</DebugType>
+		<AppendTargetFrameworkToOutputPath>false</AppendTargetFrameworkToOutputPath>
+		<DebugType>full</DebugType>
 		<DebugSymbols>true</DebugSymbols>
 	</PropertyGroup>
 
 	<PropertyGroup>
 		<Description>The Lithnet ECMA2 framework provides a base for creating high performance multi-threaded management agents for Microsoft Identity Manager</Description>
 		<Company>Lithnet</Company>
-		<Copyright>Copyright 2023 Lithnet Pty Ltd</Copyright>
+		<Copyright>Copyright 2024 Lithnet Pty Ltd</Copyright>
 		<ProductName>Lithnet ECMA2 framework</ProductName>
-		<Version>2.0.0</Version>
+		<Version>2.0.0-beta35</Version>
 		<Authors>Lithnet</Authors>
 		<AutoIncrementPackageRevision>true</AutoIncrementPackageRevision>
 		<IsPackable>true</IsPackable>
@@ -32,28 +31,28 @@
 		<IncludeSymbols>true</IncludeSymbols>
 		<SymbolPackageFormat>snupkg</SymbolPackageFormat>
 		<EmbedUntrackedSources>true</EmbedUntrackedSources>
+		<EnforceExtendedAnalyzerRules>true</EnforceExtendedAnalyzerRules>
+		<Title>Lithnet ECMA2 Framework</Title>
+		<PackageProjectUrl>https://github.com/lithnet/ecma2-framework</PackageProjectUrl>
+
 	</PropertyGroup>
 
 	<PropertyGroup Condition="'$(TF_BUILD)' == 'true'">
 		<ContinuousIntegrationBuild>true</ContinuousIntegrationBuild>
 	</PropertyGroup>
 
+
 	<ItemGroup>
+		<PackageReference Include="Microsoft.CodeAnalysis.CSharp" Version="4.8.0" PrivateAssets="all" />
+		<PackageReference Include="Microsoft.CodeAnalysis.Analyzers" Version="3.3.4" PrivateAssets="all" />
+		<PackageReference Include="NLog.WindowsEventLog" Version="4.5.11" />
 		<PackageReference Include="System.Interactive.Async" Version="6.0.1" />
 		<PackageReference Include="Microsoft.Bcl.AsyncInterfaces" Version="8.0.0" />
-		<PackageReference Include="Microsoft.SourceLink.GitHub" Version="8.0.0">
-			<PrivateAssets>all</PrivateAssets>
-			<IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
-		</PackageReference>
-		<PackageReference Include="Newtonsoft.Json" Version="13.0.3">
-			<PrivateAssets>all</PrivateAssets>
-		</PackageReference>
+		<PackageReference Include="Microsoft.SourceLink.GitHub" Version="8.0.0" PrivateAssets="all"/>
+		<PackageReference Include="Newtonsoft.Json" Version="13.0.3" />
 		<PackageReference Include="NLog" Version="4.5.11" />
-		<PackageReference Include="ILRepack.Lib.MSBuild.Task" Version="2.0.22">
-			<PrivateAssets>None</PrivateAssets>
-			<IncludeAssets>All</IncludeAssets>
-		</PackageReference>
 		<PackageReference Include="System.Threading.Tasks.Dataflow" Version="8.0.0" />
+		<!--<PackageReference Include="ILRepack.Lib.MSBuild.Task" Version="2.0.22" PrivateAssets="none" IncludeAssets="all"/>-->
 	</ItemGroup>
 
 	<ItemGroup>
@@ -66,6 +65,11 @@
 	<ItemGroup>
 		<None Include="build\Lithnet.Ecma2Framework.props" Pack="true" PackagePath="build\" />
 		<None Include="build\Lithnet.Ecma2Framework.targets" Pack="true" PackagePath="build\" />
+	</ItemGroup>
+
+
+	<ItemGroup>
+		<None Include="$(OutputPath)\$(AssemblyName).dll" Pack="true" PackagePath="analyzers/dotnet/cs" Visible="false" />
 	</ItemGroup>
 </Project>
 

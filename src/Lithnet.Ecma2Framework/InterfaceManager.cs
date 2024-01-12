@@ -10,11 +10,19 @@ namespace Lithnet.Ecma2Framework
     {
         private static readonly Logger logger = LogManager.GetCurrentClassLogger();
 
+        private static Assembly ecmaAssembly;
+
         public static IEnumerable<Type> GetPluginsOfType<T>()
         {
             try
             {
-                return Assembly.GetExecutingAssembly().GetTypes().Where(t => t.GetInterfaces().Contains(typeof(T)) && !t.IsAbstract);
+                ecmaAssembly ??= FindEcmaAssembly();
+                if (ecmaAssembly == null)
+                {
+                    throw new Lithnet.Ecma2Framework.ProviderNotFoundException("The EcmaAssemblyAttribute was not found on any loaded assembly");
+                }
+
+                return ecmaAssembly.GetTypes().Where(t => t.GetInterfaces().Contains(typeof(T)) && !t.IsAbstract);
             }
             catch (ReflectionTypeLoadException ex)
             {
@@ -27,6 +35,35 @@ namespace Lithnet.Ecma2Framework
 
                 throw;
             }
+        }
+
+        private static Assembly FindEcmaAssembly()
+        {
+            foreach (var assembly in AppDomain.CurrentDomain.GetAssemblies())
+            {
+                if (assembly == Assembly.GetExecutingAssembly())
+                {
+                    continue;
+                }
+
+                if (Attribute.IsDefined(assembly, typeof(EcmaAssemblyAttribute)))
+                {
+                    return assembly;
+                }
+            }
+
+            foreach (var assembly in AppDomain.CurrentDomain.GetAssemblies())
+            {
+                foreach (var type in assembly.GetExportedTypes().Where(t => t.IsPublic && !t.IsAbstract))
+                {
+                    if (typeof(Microsoft.MetadirectoryServices.IMAExtensible2GetSchema).IsAssignableFrom(type))
+                    {
+                        return assembly;
+                    }
+                }
+            }
+
+            return null;
         }
 
         public static IEnumerable<T> GetInstancesOfType<T>()

@@ -10,8 +10,7 @@ using NLog;
 
 namespace Lithnet.Ecma2Framework
 {
-    public class Ecma2Export :
-        IMAExtensible2CallExport
+    public class Ecma2Export
     {
         private static readonly Logger logger = LogManager.GetCurrentClassLogger();
 
@@ -32,16 +31,43 @@ namespace Lithnet.Ecma2Framework
 
         private ExportContext exportContext;
 
-        public int ExportDefaultPageSize => 100;
-
-        public int ExportMaxPageSize => 9999;
-
-        public void OpenExportConnection(KeyedCollection<string, ConfigParameter> configParameters, Schema types, OpenExportConnectionRunStep exportRunStep)
+        public Task CloseExportConnectionAsync(CloseExportConnectionRunStep exportRunStep)
         {
-            AsyncHelper.RunSync(this.OpenExportConnectionAsync(configParameters, types, exportRunStep));
+            logger.Info($"Closing export connection: {exportRunStep.Reason}");
+
+            if (this.exportContext == null)
+            {
+                logger.Trace("No export context detected");
+                return Task.CompletedTask;
+            }
+
+            this.exportContext.Timer.Stop();
+
+            if (exportRunStep.Reason != CloseReason.Normal)
+            {
+                if (this.exportContext.CancellationTokenSource != null)
+                {
+                    logger.Info("Cancellation request received");
+                    this.exportContext.CancellationTokenSource.Cancel();
+                    this.exportContext.CancellationTokenSource.Token.WaitHandle.WaitOne();
+                    logger.Info("Cancellation completed");
+                }
+            }
+
+            logger.Info("Export operation complete");
+            logger.Info($"Exported {this.exportContext.ExportedItemCount} objects");
+            logger.Info($"Export duration: {this.exportContext.Timer.Elapsed}");
+
+            if (this.exportContext.ExportedItemCount > 0 && this.exportContext.Timer.Elapsed.TotalSeconds > 0)
+            {
+                logger.Info($"Speed: {(this.exportContext.ExportedItemCount / this.exportContext.Timer.Elapsed.TotalSeconds):N2} obj/sec");
+                logger.Info($"Average: {(this.exportContext.Timer.Elapsed.TotalSeconds / this.exportContext.ExportedItemCount):N2} sec/obj");
+            }
+
+            return Task.CompletedTask;
         }
 
-        private async Task OpenExportConnectionAsync(KeyedCollection<string, ConfigParameter> configParameters, Schema types, OpenExportConnectionRunStep exportRunStep)
+        public async Task OpenExportConnectionAsync(KeyedCollection<string, ConfigParameter> configParameters, Schema types, OpenExportConnectionRunStep exportRunStep)
         {
             Logging.SetupLogger(configParameters);
 
@@ -77,7 +103,7 @@ namespace Lithnet.Ecma2Framework
             }
         }
 
-        public PutExportEntriesResults PutExportEntries(IList<CSEntryChange> csentries)
+        public Task<PutExportEntriesResults> PutExportEntriesAsync(IList<CSEntryChange> csentries)
         {
             PutExportEntriesResults results = new PutExportEntriesResults();
 
@@ -128,7 +154,7 @@ namespace Lithnet.Ecma2Framework
             });
 
             logger.Info($"Page complete. Export count: {this.exportContext.ExportedItemCount}");
-            return results;
+            return Task.FromResult(results);
         }
 
         private async Task<CSEntryChangeResult> PutCSEntryChangeAsync(CSEntryChange csentry)
@@ -155,40 +181,6 @@ namespace Lithnet.Ecma2Framework
             foreach (var provider in Providers)
             {
                 await provider.InitializeAsync(context);
-            }
-        }
-
-        public void CloseExportConnection(CloseExportConnectionRunStep exportRunStep)
-        {
-            logger.Info($"Closing export connection: {exportRunStep.Reason}");
-
-            if (this.exportContext == null)
-            {
-                logger.Trace("No export context detected");
-                return;
-            }
-
-            this.exportContext.Timer.Stop();
-
-            if (exportRunStep.Reason != CloseReason.Normal)
-            {
-                if (this.exportContext.CancellationTokenSource != null)
-                {
-                    logger.Info("Cancellation request received");
-                    this.exportContext.CancellationTokenSource.Cancel();
-                    this.exportContext.CancellationTokenSource.Token.WaitHandle.WaitOne();
-                    logger.Info("Cancellation completed");
-                }
-            }
-
-            logger.Info("Export operation complete");
-            logger.Info($"Exported {this.exportContext.ExportedItemCount} objects");
-            logger.Info($"Export duration: {this.exportContext.Timer.Elapsed}");
-
-            if (this.exportContext.ExportedItemCount > 0 && this.exportContext.Timer.Elapsed.TotalSeconds > 0)
-            {
-                logger.Info($"Speed: {(this.exportContext.ExportedItemCount / this.exportContext.Timer.Elapsed.TotalSeconds):N2} obj/sec");
-                logger.Info($"Average: {(this.exportContext.Timer.Elapsed.TotalSeconds / this.exportContext.ExportedItemCount):N2} sec/obj");
             }
         }
     }

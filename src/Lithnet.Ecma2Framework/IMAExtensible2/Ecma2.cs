@@ -7,29 +7,27 @@ using NLog;
 
 namespace Lithnet.Ecma2Framework
 {
-    public class Ecma2 :
-        IMAExtensible2GetSchema,
-        IMAExtensible2GetCapabilitiesEx,
-        IMAExtensible2GetParametersEx,
-        IMAExtensible2GetParameters
+    public class Ecma2
     {
         private static readonly Logger logger = LogManager.GetCurrentClassLogger();
 
-        public Schema GetSchema(KeyedCollection<string, ConfigParameter> configParameters)
-        {
-            return AsyncHelper.RunSync(this.GetSchemaAsync(configParameters));
-        }
-
-        private async Task<Schema> GetSchemaAsync(KeyedCollection<string, ConfigParameter> configParameters)
+        public async Task<Schema> GetSchemaAsync(KeyedCollection<string, ConfigParameter> configParameters)
         {
             try
             {
                 Logging.SetupLogger(configParameters);
+
                 SchemaContext context = new SchemaContext()
                 {
                     ConfigParameters = configParameters,
-                    ConnectionContext = await InterfaceManager.GetProviderOrDefault<IConnectionContextProvider>()?.GetConnectionContextAsync(configParameters, ConnectionContextOperationType.Schema)
                 };
+
+                var connectionContextProvider = InterfaceManager.GetProviderOrDefault<IConnectionContextProvider>();
+
+                if (connectionContextProvider != null)
+                {
+                    context.ConnectionContext = await connectionContextProvider.GetConnectionContextAsync(configParameters, ConnectionContextOperationType.Schema);
+                }
 
                 ISchemaProvider provider = InterfaceManager.GetProviderOrThrow<ISchemaProvider>();
 
@@ -42,23 +40,13 @@ namespace Lithnet.Ecma2Framework
             }
         }
 
-        public IList<ConfigParameterDefinition> GetConfigParameters(KeyedCollection<string, ConfigParameter> configParameters, ConfigParameterPage page)
-        {
-            return this.GetConfigParametersEx(configParameters, page, 1);
-        }
-
-        public ParameterValidationResult ValidateConfigParameters(KeyedCollection<string, ConfigParameter> configParameters, ConfigParameterPage page)
-        {
-            return this.ValidateConfigParametersEx(configParameters, page, 1);
-        }
-
-        public MACapabilities GetCapabilitiesEx(KeyedCollection<string, ConfigParameter> configParameters)
+        public async Task<MACapabilities> GetCapabilitiesExAsync(KeyedCollection<string, ConfigParameter> configParameters)
         {
             try
             {
                 Logging.SetupLogger(configParameters);
                 ICapabilitiesProvider provider = InterfaceManager.GetProviderOrThrow<ICapabilitiesProvider>();
-                return AsyncHelper.RunSync(provider.GetCapabilitiesExAsync(configParameters));
+                return await provider.GetCapabilitiesExAsync(configParameters);
             }
             catch (Exception ex)
             {
@@ -67,7 +55,7 @@ namespace Lithnet.Ecma2Framework
             }
         }
 
-        public IList<ConfigParameterDefinition> GetConfigParametersEx(KeyedCollection<string, ConfigParameter> configParameters, ConfigParameterPage page, int pageNumber)
+        public async Task<IList<ConfigParameterDefinition>> GetConfigParametersExAsync(KeyedCollection<string, ConfigParameter> configParameters, ConfigParameterPage page, int pageNumber)
         {
             try
             {
@@ -84,7 +72,7 @@ namespace Lithnet.Ecma2Framework
 
                 if (provider != null)
                 {
-                    AsyncHelper.RunSync(provider.GetConfigParametersExAsync(configParameters, configParameterDefinitions, page, pageNumber));
+                    await provider.GetConfigParametersExAsync(configParameters, configParameterDefinitions, page, pageNumber);
                 }
 
                 return configParameterDefinitions;
@@ -93,11 +81,10 @@ namespace Lithnet.Ecma2Framework
             {
                 logger.Error(ex, "Could not get config parameters");
                 throw;
-
             }
         }
 
-        public ParameterValidationResult ValidateConfigParametersEx(KeyedCollection<string, ConfigParameter> configParameters, ConfigParameterPage page, int pageNumber)
+        public async Task<ParameterValidationResult> ValidateConfigParametersAsync(KeyedCollection<string, ConfigParameter> configParameters, ConfigParameterPage page, int pageNumber)
         {
             try
             {
@@ -105,7 +92,7 @@ namespace Lithnet.Ecma2Framework
 
                 if (provider != null)
                 {
-                    return AsyncHelper.RunSync(provider.ValidateConfigParametersExAsync(configParameters, page, pageNumber));
+                    return await provider.ValidateConfigParametersExAsync(configParameters, page, pageNumber);
                 }
 
                 return new ParameterValidationResult();
