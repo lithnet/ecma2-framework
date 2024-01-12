@@ -18,7 +18,7 @@
 		<Company>Lithnet</Company>
 		<Copyright>Copyright 2024 Lithnet Pty Ltd</Copyright>
 		<ProductName>Lithnet ECMA2 framework</ProductName>
-		<Version>2.0.0-beta37</Version>
+		<Version>2.0.0-beta50</Version>
 		<Authors>Lithnet</Authors>
 		<AutoIncrementPackageRevision>true</AutoIncrementPackageRevision>
 		<IsPackable>true</IsPackable>
@@ -52,6 +52,9 @@
 		<PackageReference Include="Newtonsoft.Json" Version="13.0.3" />
 		<PackageReference Include="NLog" Version="4.5.11" />
 		<PackageReference Include="System.Threading.Tasks.Dataflow" Version="8.0.0" />
+		<!-- without this, assemblies dont resolve. Something is tagging attributes in the compiled code and causes TypeLoad errors in the ECMA -->
+		<PackageReference Include="Microsoft.CodeAnalysis.Common" Version="4.8.0"/>
+
 		<!--<PackageReference Include="ILRepack.Lib.MSBuild.Task" Version="2.0.22" PrivateAssets="none" IncludeAssets="all"/>-->
 	</ItemGroup>
 

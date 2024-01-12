@@ -36,6 +36,7 @@
 		<ILRepack Parallel="true"
 				  Internalize="true"
 				  DebugInfo="true"
+				  AllowedDuplicateNamespaces="Microsoft.CodeAnalysis,System.Runtime.CompilerServices"
 				  InternalizeExclude="@(DoNotInternalizeAssemblies)"
 				  InputAssemblies="@(InputAssemblies)"
 				  TargetKind="SameAsPrimaryAssembly"
