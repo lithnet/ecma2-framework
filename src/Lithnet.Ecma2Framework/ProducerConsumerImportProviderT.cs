@@ -3,16 +3,21 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
 using System.Threading.Tasks.Dataflow;
+using Microsoft.Extensions.Logging;
 using Microsoft.MetadirectoryServices;
-using NLog;
 
 namespace Lithnet.Ecma2Framework
 {
     public abstract class ProducerConsumerImportProvider<TObject> : IObjectImportProvider
     {
-        private static readonly Logger logger = LogManager.GetCurrentClassLogger();
+        private readonly ILogger logger;
 
         protected IImportContext ImportContext { get; private set; }
+
+        public ProducerConsumerImportProvider(ILogger logger)
+        {
+            this.logger = logger;
+        }
 
         public abstract Task<bool> CanImportAsync(SchemaType type);
 
@@ -39,7 +44,7 @@ namespace Lithnet.Ecma2Framework
             }
             catch (Exception ex)
             {
-                logger.Error(ex, "There was an error importing the item data");
+                this.logger.LogError(ex, "There was an error importing the item data");
                 throw;
             }
         }
@@ -73,7 +78,7 @@ namespace Lithnet.Ecma2Framework
                 }
                 catch (Exception ex)
                 {
-                    logger.Error(ex);
+                    this.logger.LogError(ex, "Error creating CSEntryChange");
                     CSEntryChange csentry = CSEntryChange.Create();
                     csentry.DN = await this.GetDNAsync(item);
                     csentry.ErrorCodeImport = MAImportError.ImportErrorCustomContinueRun;
@@ -92,7 +97,7 @@ namespace Lithnet.Ecma2Framework
         {
             try
             {
-                logger.Trace($"Creating CSEntryChange for {item}");
+                this.logger.LogTrace($"Creating CSEntryChange for {item}");
 
                 ObjectModificationType modType = await this.GetObjectModificationTypeAsync(item);
 
@@ -134,7 +139,7 @@ namespace Lithnet.Ecma2Framework
             }
             catch (Exception ex)
             {
-                logger.Error(ex, $"Error creating CSEntryChange for {item}");
+                this.logger.LogError(ex, $"Error creating CSEntryChange for {item}");
                 throw;
             }
         }

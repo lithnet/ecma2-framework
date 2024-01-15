@@ -5,39 +5,48 @@ using System.Diagnostics;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
+using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Logging;
 using Microsoft.MetadirectoryServices;
-using NLog;
 
 namespace Lithnet.Ecma2Framework
 {
     public class Ecma2Export
     {
-        private static readonly Logger logger = LogManager.GetCurrentClassLogger();
+        private readonly ILogger logger;
+        private readonly IEcma2ConfigParameters configParameters;
+        private readonly IServiceProvider serviceProvider;
 
-        private static List<IObjectExportProvider> providerCache;
+        private List<IObjectExportProvider> providerCache;
+        private ExportContext exportContext;
 
-        private static List<IObjectExportProvider> Providers
+        public Ecma2Export(Ecma2Initializer init)
+        {
+            this.serviceProvider = init.Build();
+            this.logger = this.serviceProvider.GetRequiredService<ILogger<Ecma2Export>>();
+            this.configParameters = this.serviceProvider.GetRequiredService<IEcma2ConfigParameters>();
+        }
+
+        private List<IObjectExportProvider> Providers
         {
             get
             {
-                if (Ecma2Export.providerCache == null)
+                if (this.providerCache == null)
                 {
-                    Ecma2Export.providerCache = InterfaceManager.GetInstancesOfType<IObjectExportProvider>().ToList();
+                    this.providerCache = this.serviceProvider.GetServices<IObjectExportProvider>().ToList();
                 }
 
-                return Ecma2Export.providerCache;
+                return this.providerCache;
             }
         }
 
-        private ExportContext exportContext;
-
         public Task CloseExportConnectionAsync(CloseExportConnectionRunStep exportRunStep)
         {
-            logger.Info($"Closing export connection: {exportRunStep.Reason}");
+            this.logger.LogInformation($"Closing export connection: {exportRunStep.Reason}");
 
             if (this.exportContext == null)
             {
-                logger.Trace("No export context detected");
+                this.logger.LogTrace("No export context detected");
                 return Task.CompletedTask;
             }
 
@@ -47,21 +56,21 @@ namespace Lithnet.Ecma2Framework
             {
                 if (this.exportContext.CancellationTokenSource != null)
                 {
-                    logger.Info("Cancellation request received");
+                    this.logger.LogInformation("Cancellation request received");
                     this.exportContext.CancellationTokenSource.Cancel();
                     this.exportContext.CancellationTokenSource.Token.WaitHandle.WaitOne();
-                    logger.Info("Cancellation completed");
+                    this.logger.LogInformation("Cancellation completed");
                 }
             }
 
-            logger.Info("Export operation complete");
-            logger.Info($"Exported {this.exportContext.ExportedItemCount} objects");
-            logger.Info($"Export duration: {this.exportContext.Timer.Elapsed}");
+            this.logger.LogInformation("Export operation complete");
+            this.logger.LogInformation($"Exported {this.exportContext.ExportedItemCount} objects");
+            this.logger.LogInformation($"Export duration: {this.exportContext.Timer.Elapsed}");
 
             if (this.exportContext.ExportedItemCount > 0 && this.exportContext.Timer.Elapsed.TotalSeconds > 0)
             {
-                logger.Info($"Speed: {(this.exportContext.ExportedItemCount / this.exportContext.Timer.Elapsed.TotalSeconds):N2} obj/sec");
-                logger.Info($"Average: {(this.exportContext.Timer.Elapsed.TotalSeconds / this.exportContext.ExportedItemCount):N2} sec/obj");
+                this.logger.LogInformation($"Speed: {(this.exportContext.ExportedItemCount / this.exportContext.Timer.Elapsed.TotalSeconds):N2} obj/sec");
+                this.logger.LogInformation($"Average: {(this.exportContext.Timer.Elapsed.TotalSeconds / this.exportContext.ExportedItemCount):N2} sec/obj");
             }
 
             return Task.CompletedTask;
@@ -69,7 +78,7 @@ namespace Lithnet.Ecma2Framework
 
         public async Task OpenExportConnectionAsync(KeyedCollection<string, ConfigParameter> configParameters, Schema types, OpenExportConnectionRunStep exportRunStep)
         {
-            Logging.SetupLogger(configParameters);
+            this.configParameters.SetConfigParameters(configParameters);
 
             this.exportContext = new ExportContext()
             {
@@ -78,17 +87,17 @@ namespace Lithnet.Ecma2Framework
 
             try
             {
-                logger.Info("Starting export");
+                this.logger.LogInformation("Starting export");
 
-                var initializers = InterfaceManager.GetInstancesOfType<IOperationInitializer>();
+                var initializers = this.serviceProvider.GetServices<IOperationInitializer>();
 
                 if (initializers != null)
                 {
                     foreach (var initializer in initializers)
                     {
-                        logger.Info("Launching initializer");
+                        this.logger.LogInformation("Launching initializer");
                         await initializer.InitializeExportAsync(this.exportContext);
-                        logger.Info("Initializer complete");
+                        this.logger.LogInformation("Initializer complete");
                     }
                 }
 
@@ -97,7 +106,7 @@ namespace Lithnet.Ecma2Framework
             }
             catch (Exception ex)
             {
-                logger.Error(ex);
+                this.logger.LogError(ex, "Failed to open export connection");
                 throw;
             }
         }
@@ -120,7 +129,7 @@ namespace Lithnet.Ecma2Framework
                 string record = $"{number}:{csentry.ObjectModificationType}:{csentry.ObjectType}:{csentry.DN}";
                 CSEntryChangeResult result = null;
 
-                logger.Info($"Exporting record {record}");
+                this.logger.LogInformation($"Exporting record {record}");
 
                 try
                 {
@@ -129,7 +138,7 @@ namespace Lithnet.Ecma2Framework
                 }
                 catch (Exception ex)
                 {
-                    logger.Error(ex, $"An error occurred exporting record {record}");
+                    this.logger.LogError(ex, $"An error occurred exporting record {record}");
                     result = CSEntryChangeResult.Create(csentry.Identifier, null, MAExportError.ExportErrorCustomContinueRun, ex.Message, ex.ToString());
                 }
                 finally
@@ -138,7 +147,7 @@ namespace Lithnet.Ecma2Framework
 
                     if (result == null)
                     {
-                        logger.Error($"CSEntryResult for object {record} was null");
+                        this.logger.LogError($"CSEntryResult for object {record} was null");
                     }
                     else
                     {
@@ -148,11 +157,11 @@ namespace Lithnet.Ecma2Framework
                         }
                     }
 
-                    logger.Trace($"Export of record {record} returned '{result?.ErrorCode.ToString().ToLower() ?? "<null>"}' and took {timer.Elapsed}");
+                    this.logger.LogTrace($"Export of record {record} returned '{result?.ErrorCode.ToString().ToLower() ?? "<null>"}' and took {timer.Elapsed}");
                 }
             });
 
-            logger.Info($"Page complete. Export count: {this.exportContext.ExportedItemCount}");
+            this.logger.LogInformation($"Page complete. Export count: {this.exportContext.ExportedItemCount}");
             return Task.FromResult(results);
         }
 
@@ -164,7 +173,7 @@ namespace Lithnet.Ecma2Framework
 
         private async Task<IObjectExportProvider> GetProviderForTypeAsync(CSEntryChange csentry)
         {
-            foreach (IObjectExportProvider provider in Ecma2Export.Providers)
+            foreach (IObjectExportProvider provider in this.Providers)
             {
                 if (await provider.CanExportAsync(csentry))
                 {
@@ -177,7 +186,7 @@ namespace Lithnet.Ecma2Framework
 
         private async Task InitializeProvidersAsync(ExportContext context)
         {
-            foreach (var provider in Providers)
+            foreach (var provider in this.Providers)
             {
                 await provider.InitializeAsync(context);
             }

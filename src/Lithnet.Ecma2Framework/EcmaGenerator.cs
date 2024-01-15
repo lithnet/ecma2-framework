@@ -1,5 +1,7 @@
-﻿using System.Text;
+﻿using System.Collections.Generic;
+using System.Text;
 using Microsoft.CodeAnalysis;
+using Microsoft.CodeAnalysis.CSharp.Syntax;
 using Microsoft.CodeAnalysis.Text;
 
 namespace Lithnet.Ecma2Framework
@@ -7,10 +9,70 @@ namespace Lithnet.Ecma2Framework
     [Generator]
     public class EcmaGenerator : ISourceGenerator
     {
-        public void Initialize(GeneratorInitializationContext context) { }
+        public void Initialize(GeneratorInitializationContext context)
+        {
+            context.RegisterForSyntaxNotifications(() => new IEcma2InitializerSyntaxReceiver());
+        }
 
         public void Execute(GeneratorExecutionContext context)
         {
+            if (context.SyntaxContextReceiver is not IEcma2InitializerSyntaxReceiver receiver)
+            {
+                return;
+            }
+
+            bool hasErrors = false;
+
+            if (!receiver.HasBootstrapper || string.IsNullOrWhiteSpace(receiver.BootstrapperClassName))
+            {
+                context.ReportDiagnostic(Diagnostic.Create(new DiagnosticDescriptor("ECMA2001", "Could not find the bootstrapper implementation", $"A bootstrapper class could not be found. Please generate a class that implements from {typeof(IEcmaBootstrapper).FullName}", "Ecma2Framework", DiagnosticSeverity.Error, true), Location.None));
+                hasErrors = true;
+            }
+
+            if (!receiver.HasSchemaProvider)
+            {
+                context.ReportDiagnostic(Diagnostic.Create(new DiagnosticDescriptor("ECMA2002", "Could not find the schema provider implementation", $"A schema provider class could not be found. Please generate a class that implements from {typeof(ISchemaProvider).FullName}", "Ecma2Framework", DiagnosticSeverity.Error, true), Location.None));
+                hasErrors = true;
+            }
+
+            if (!receiver.HasCapabilityProvider)
+            {
+                context.ReportDiagnostic(Diagnostic.Create(new DiagnosticDescriptor("ECMA2003", "Could not find the capabilities provider implementation", $"A capabilities provider class could not be found. Please generate a class that implements from {typeof(ICapabilitiesProvider).FullName}", "Ecma2Framework", DiagnosticSeverity.Error, true), Location.None));
+                hasErrors = true;
+            }
+
+            if (!receiver.HasObjectExportProvider && !receiver.HasObjectImportProvider)
+            {
+                context.ReportDiagnostic(Diagnostic.Create(new DiagnosticDescriptor("ECMA2004", "Could not find the object import or export provider implementation", $"An object provider class could not be found. Please generate at least one class that implements from {typeof(IObjectExportProvider).FullName} or {typeof(IObjectImportProvider).FullName}", "Ecma2Framework", DiagnosticSeverity.Error, true), Location.None));
+                hasErrors = true;
+            }
+
+            if (hasErrors)
+            {
+                return;
+            }
+
+            context.AddSource("Ecma2Bootstrapper.g.cs", SourceText.From(@"
+namespace Lithnet.Ecma2Framework
+{
+    internal static class Ecma2Bootstrapper
+    {
+        private static Ecma2Initializer initializer;
+
+        public static Ecma2Initializer GetInitializer()
+        {
+            if (initializer == null)
+            {
+                var bootStrapper = new " + receiver.BootstrapperClassName + @"();
+                initializer = new Ecma2Initializer(bootStrapper);
+            }
+
+            return initializer;
+        }
+    }
+}
+", Encoding.UTF8));
+
             context.AddSource("Ecma2ImportImplementation.g.cs", SourceText.From(@"
 using System.Collections.ObjectModel;
 using Microsoft.MetadirectoryServices;
@@ -23,7 +85,8 @@ namespace Lithnet.Ecma2Framework
 
         public Ecma2ImportImplementation()
         {
-            this.provider = new Ecma2Import();
+            var initializer = Ecma2Bootstrapper.GetInitializer();
+            this.provider = new Ecma2Import(initializer);
         }
 
         int IMAExtensible2CallImport.ImportDefaultPageSize => 100;
@@ -60,7 +123,8 @@ namespace Lithnet.Ecma2Framework
 
         public Ecma2ExportImplementation()
         {
-            this.provider = new Ecma2Export();
+            var initializer = Ecma2Bootstrapper.GetInitializer();
+            this.provider = new Ecma2Export(initializer);
         }
 
         int IMAExtensible2CallExport.ExportDefaultPageSize => 100;
@@ -98,7 +162,8 @@ namespace Lithnet.Ecma2Framework
 
         public Ecma2PasswordImplementation()
         {
-            this.provider = new Ecma2Password();
+            var initializer = Ecma2Bootstrapper.GetInitializer();
+            this.provider = new Ecma2Password(initializer);
         }
 
         void IMAExtensible2Password.OpenPasswordConnection(KeyedCollection<string, ConfigParameter> configParameters, Partition partition)
@@ -146,7 +211,8 @@ namespace Lithnet.Ecma2Framework
 
         public Ecma2Implementation()
         {
-            this.provider = new Ecma2();
+            var initializer = Ecma2Bootstrapper.GetInitializer();
+            this.provider = new Ecma2(initializer);
         }
 
 
@@ -182,6 +248,143 @@ namespace Lithnet.Ecma2Framework
     }
 }
 ", Encoding.UTF8));
+        }
+
+
+        internal class IEcma2InitializerSyntaxReceiver : ISyntaxContextReceiver
+        {
+            public string BootstrapperClassName { get; set; }
+
+            public bool HasBootstrapper { get; set; }
+
+            public bool HasCapabilityProvider { get; set; }
+
+            public bool HasConfigProvider { get; set; }
+
+            public bool HasSchemaProvider { get; set; }
+
+            public bool HasObjectImportProvider { get; set; }
+
+            public bool HasObjectExportProvider { get; set; }
+
+
+            /// <summary>
+            /// Called for every syntax node in the compilation, we can inspect the nodes and save any information useful for generation
+            /// </summary>
+            public void OnVisitSyntaxNode(GeneratorSyntaxContext context)
+            {
+                // any field with at least one attribute is a candidate for property generation
+                if (context.Node is ClassDeclarationSyntax classDeclarationSyntax)
+                {
+                    INamedTypeSymbol declaredSymbol = context.SemanticModel.GetDeclaredSymbol(classDeclarationSyntax) as INamedTypeSymbol;
+
+                    if (declaredSymbol == null || declaredSymbol.IsStatic || declaredSymbol.IsAbstract)
+                    {
+                        return;
+                    }
+
+                    var symbolDisplayFormat = new SymbolDisplayFormat(typeQualificationStyle: SymbolDisplayTypeQualificationStyle.NameAndContainingTypesAndNamespaces);
+                    string fullyQualifiedName = declaredSymbol.ToDisplayString(symbolDisplayFormat);
+
+                    if (declaredSymbol.HasInterface(context, typeof(IEcmaBootstrapper).FullName))
+                    {
+                        this.HasBootstrapper = true;
+                        this.BootstrapperClassName = fullyQualifiedName;
+                    }
+                    else if (declaredSymbol.HasInterface(context, typeof(ICapabilitiesProvider).FullName))
+                    {
+                        this.HasCapabilityProvider = true;
+                    }
+                    else if (declaredSymbol.HasInterface(context, typeof(IConfigParametersProviderEx).FullName))
+                    {
+                        this.HasConfigProvider = true;
+                    }
+                    else if (declaredSymbol.HasInterface(context, typeof(IObjectExportProvider).FullName))
+                    {
+                        this.HasObjectExportProvider = true;
+                    }
+                    else if (declaredSymbol.HasInterface(context, typeof(IObjectImportProvider).FullName))
+                    {
+                        this.HasObjectImportProvider = true;
+                    }
+                    else if (declaredSymbol.HasInterface(context, typeof(ISchemaProvider).FullName))
+                    {
+                        this.HasSchemaProvider = true;
+                    }
+                }
+            }
+        }
+
+        internal class InterfaceImplementationSyntaxReceiver : ISyntaxContextReceiver
+        {
+            public Dictionary<string, List<string>> ClassesToAdd { get; } = new Dictionary<string, List<string>>();
+
+            /// <summary>
+            /// Called for every syntax node in the compilation, we can inspect the nodes and save any information useful for generation
+            /// </summary>
+            public void OnVisitSyntaxNode(GeneratorSyntaxContext context)
+            {
+                // any field with at least one attribute is a candidate for property generation
+                if (context.Node is ClassDeclarationSyntax classDeclarationSyntax)
+                {
+                    INamedTypeSymbol declaredSymbol = context.SemanticModel.GetDeclaredSymbol(classDeclarationSyntax) as INamedTypeSymbol;
+
+                    if (declaredSymbol == null || declaredSymbol.IsStatic || declaredSymbol.IsAbstract)
+                    {
+                        return;
+                    }
+
+                    var symbolDisplayFormat = new SymbolDisplayFormat(typeQualificationStyle: SymbolDisplayTypeQualificationStyle.NameAndContainingTypesAndNamespaces);
+                    string fullyQualifiedName = declaredSymbol.ToDisplayString(symbolDisplayFormat);
+
+                    if (declaredSymbol.HasInterface(context, typeof(ICapabilitiesProvider).FullName))
+                    {
+                        this.AddTypeToList(typeof(ICapabilitiesProvider).FullName, fullyQualifiedName);
+                    }
+                    else if (declaredSymbol.HasInterface(context, typeof(IConfigParametersProviderEx).FullName))
+                    {
+                        this.AddTypeToList(typeof(IConfigParametersProviderEx).FullName, fullyQualifiedName);
+                    }
+                    else if (declaredSymbol.HasInterface(context, typeof(IObjectExportProvider).FullName))
+                    {
+                        this.AddTypeToList(typeof(IObjectExportProvider).FullName, fullyQualifiedName);
+                    }
+                    else if (declaredSymbol.HasInterface(context, typeof(IObjectImportProvider).FullName))
+                    {
+                        this.AddTypeToList(typeof(IObjectImportProvider).FullName, fullyQualifiedName);
+                    }
+                    else if (declaredSymbol.HasInterface(context, typeof(IObjectPasswordProvider).FullName))
+                    {
+                        this.AddTypeToList(typeof(IObjectPasswordProvider).FullName, fullyQualifiedName);
+                    }
+                    else if (declaredSymbol.HasInterface(context, typeof(ISchemaProvider).FullName))
+                    {
+                        this.AddTypeToList(typeof(ISchemaProvider).FullName, fullyQualifiedName);
+                    }
+                    else if (declaredSymbol.HasInterface(context, typeof(IOperationInitializer).FullName))
+                    {
+                        this.AddTypeToList(typeof(IOperationInitializer).FullName, fullyQualifiedName);
+                    }
+                    else if (declaredSymbol.HasInterface(context, typeof(ISettingsProvider).FullName))
+                    {
+                        this.AddTypeToList(typeof(ISettingsProvider).FullName, fullyQualifiedName);
+                    }
+                }
+            }
+
+            private void AddTypeToList(string interfaceName, string concreteType)
+            {
+                if (!this.ClassesToAdd.TryGetValue(interfaceName, out var list))
+                {
+                    list = new List<string>();
+                    list.Add(concreteType);
+                    this.ClassesToAdd.Add(interfaceName, list);
+                }
+                else
+                {
+                    list.Add(concreteType);
+                }
+            }
         }
     }
 }

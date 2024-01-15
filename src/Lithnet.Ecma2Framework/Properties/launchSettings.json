@@ -1,0 +1,8 @@
+{
+  "profiles": {
+    "Profile 1": {
+      "commandName": "DebugRoslynComponent",
+      "targetProject": "..\\Lithnet.Ecma2Framework.SourceGenDebugger\\Lithnet.Ecma2Framework.SourceGenDebugger.csproj"
+    }
+  }
+}
