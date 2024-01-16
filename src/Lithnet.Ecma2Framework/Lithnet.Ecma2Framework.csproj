@@ -1,19 +1,14 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk">
 	<PropertyGroup>
-		<TargetFrameworks>netstandard2.0</TargetFrameworks>
+		<TargetFrameworks>net472</TargetFrameworks>
 		<OutputType>Library</OutputType>
 		<PlatformTargets>AnyCPU</PlatformTargets>
 		<Deterministic>true</Deterministic>
-		<AutoGenerateBindingRedirects>true</AutoGenerateBindingRedirects>
-		<GenerateBindingRedirectsOutputType>true</GenerateBindingRedirectsOutputType>
 		<LangVersion>9</LangVersion>
 		<GeneratePackageOnBuild>true</GeneratePackageOnBuild>
 		<AppendTargetFrameworkToOutputPath>false</AppendTargetFrameworkToOutputPath>
 		<DebugType>full</DebugType>
 		<DebugSymbols>true</DebugSymbols>
-		<IsRoslynComponent>true</IsRoslynComponent>
-		<CopyLocalLockFileAssemblies>true</CopyLocalLockFileAssemblies>
-
 	</PropertyGroup>
 
 	<PropertyGroup>
@@ -21,7 +16,7 @@
 		<Company>Lithnet</Company>
 		<Copyright>Copyright 2024 Lithnet Pty Ltd</Copyright>
 		<ProductName>Lithnet ECMA2 framework</ProductName>
-		<Version>2.0.0-beta82</Version>
+		<Version>2.0.0-beta84</Version>
 		<Authors>Lithnet</Authors>
 		<AutoIncrementPackageRevision>true</AutoIncrementPackageRevision>
 		<IsPackable>true</IsPackable>
@@ -34,7 +29,6 @@
 		<IncludeSymbols>true</IncludeSymbols>
 		<SymbolPackageFormat>snupkg</SymbolPackageFormat>
 		<EmbedUntrackedSources>true</EmbedUntrackedSources>
-		<!--<EnforceExtendedAnalyzerRules>true</EnforceExtendedAnalyzerRules>-->
 		<Title>Lithnet ECMA2 Framework</Title>
 		<PackageProjectUrl>https://github.com/lithnet/ecma2-framework</PackageProjectUrl>
 
@@ -46,8 +40,6 @@
 
 
 	<ItemGroup>
-		<PackageReference Include="Microsoft.CodeAnalysis.CSharp" Version="4.8.0" PrivateAssets="all" />
-		<PackageReference Include="Microsoft.CodeAnalysis.Analyzers" Version="3.3.4" PrivateAssets="all" />
 		<PackageReference Include="Microsoft.Extensions.DependencyInjection" Version="8.0.0" />
 		<PackageReference Include="Microsoft.Extensions.Logging" Version="8.0.0" />
 		<PackageReference Include="Microsoft.Extensions.Logging.Debug" Version="8.0.0" />
@@ -79,8 +71,19 @@
 	</ItemGroup>
 
 	<ItemGroup>
-		<None Include="$(OutputPath)\$(AssemblyName).dll" Pack="true" PackagePath="analyzers/dotnet/cs" Visble="false" />
-		<None Include="lib\Microsoft.MetadirectoryServicesEx.dll" Pack="true" PackagePath="analyzers/dotnet/cs" Visible="false" />
+		<None Include="$(OutputPath)\Lithnet.Ecma2Framework.SourceGeneration.dll" Pack="true" PackagePath="analyzers/dotnet/cs" Visble="false" />
+	</ItemGroup>
+
+	<ItemGroup>
+		<ProjectReference Include="..\Lithnet.Ecma2Framework.SourceGeneration\Lithnet.Ecma2Framework.SourceGeneration.csproj" Pack="false">
+			<ReferenceOutputAssembly>false</ReferenceOutputAssembly>
+			<OutputItemType>Content</OutputItemType>
+			<CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+		</ProjectReference>
+	</ItemGroup>
+
+	<ItemGroup>
+	  <Folder Include="Properties\" />
 	</ItemGroup>
 </Project>
 

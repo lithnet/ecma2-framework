@@ -12,7 +12,9 @@ Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "build", "build", "{B22215C4
 EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Lithnet.Ecma2Framework.Example", "Lithnet.Ecma2Framework.Example\Lithnet.Ecma2Framework.Example.csproj", "{B5A68210-ADF2-4D49-AF95-7098301D4743}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Lithnet.Ecma2Framework.SourceGenDebugger", "Lithnet.Ecma2Framework.SourceGenDebugger\Lithnet.Ecma2Framework.SourceGenDebugger.csproj", "{370510BA-9EA0-4062-BD41-5AEFA84CC87D}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Lithnet.Ecma2Framework.SourceGeneration.Debugger", "Lithnet.Ecma2Framework.SourceGeneration.Debugger\Lithnet.Ecma2Framework.SourceGeneration.Debugger.csproj", "{370510BA-9EA0-4062-BD41-5AEFA84CC87D}"
+EndProject
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Lithnet.Ecma2Framework.SourceGeneration", "Lithnet.Ecma2Framework.SourceGeneration\Lithnet.Ecma2Framework.SourceGeneration.csproj", "{130355BE-E735-456B-AED9-38C84C03B939}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -32,6 +34,10 @@ Global
 		{370510BA-9EA0-4062-BD41-5AEFA84CC87D}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{370510BA-9EA0-4062-BD41-5AEFA84CC87D}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{370510BA-9EA0-4062-BD41-5AEFA84CC87D}.Release|Any CPU.Build.0 = Release|Any CPU
+		{130355BE-E735-456B-AED9-38C84C03B939}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{130355BE-E735-456B-AED9-38C84C03B939}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{130355BE-E735-456B-AED9-38C84C03B939}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{130355BE-E735-456B-AED9-38C84C03B939}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE

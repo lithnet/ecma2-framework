@@ -1,0 +1,23 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+
+	<PropertyGroup>
+		<OutputType>Exe</OutputType>
+		<TargetFramework>net472</TargetFramework>
+		<EmitCompilerGeneratedFiles>true</EmitCompilerGeneratedFiles>
+	</PropertyGroup>
+
+	<ItemGroup>
+		<ProjectReference Include="..\Lithnet.Ecma2Framework.SourceGeneration\Lithnet.Ecma2Framework.SourceGeneration.csproj" OutputType="Analyzer" ReferenceOutputAssembly="false"/>
+		<ProjectReference Include="..\Lithnet.Ecma2Framework\Lithnet.Ecma2Framework.csproj" />
+	</ItemGroup>
+
+	<ItemGroup>
+		<Reference Include="Microsoft.MetadirectoryServicesEx">
+			<HintPath>lib\Microsoft.MetadirectoryServicesEx.dll</HintPath>
+			<Private>True</Private>
+		</Reference>
+		<PackageReference Include="Microsoft.CodeAnalysis.CSharp" Version="4.8.0" PrivateAssets="all" />
+		<PackageReference Include="Microsoft.CodeAnalysis.Analyzers" Version="3.3.4" PrivateAssets="all" />
+	</ItemGroup>
+
+</Project>
