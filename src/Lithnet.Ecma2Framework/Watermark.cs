@@ -1,18 +1,13 @@
 ﻿using System;
-using Newtonsoft.Json;
 
 namespace Lithnet.Ecma2Framework
 {
-    [JsonObject("watermark")]
     public class Watermark
     {
-        [JsonProperty("id")]
         public string ID { get; set; }
 
-        [JsonProperty("value")]
         public string Value { get; set; }
 
-        [JsonProperty("type")]
         public string Type { get; set; }
 
         public Watermark()

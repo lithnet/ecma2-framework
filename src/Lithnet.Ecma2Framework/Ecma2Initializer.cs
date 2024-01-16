@@ -1,5 +1,4 @@
 ﻿using Microsoft.Extensions.DependencyInjection;
-using Microsoft.Extensions.Logging;
 
 namespace Lithnet.Ecma2Framework
 {
@@ -7,32 +6,23 @@ namespace Lithnet.Ecma2Framework
     {
         public Ecma2Initializer(IEcmaBootstrapper bootstrapper)
         {
+            this.Bootstrapper = bootstrapper;
+        }
+
+        private void AddInternalServices()
+        {
+        }
+
+        public IServiceCollection Services { get; private set; }
+
+        public IEcmaBootstrapper Bootstrapper { get; }
+
+        internal ServiceProvider Build(IConfigParameters config)
+        {
             this.Services = new ServiceCollection();
-            this.Services.AddSingleton<IEcmaBootstrapper>(bootstrapper);
-            bootstrapper.SetupServices(this.Services);
-            this.AddInternalServices(bootstrapper);
-        }
-
-        private void AddInternalServices(IEcmaBootstrapper bootstrapper)
-        {
-            this.Services.AddSingleton<IEcma2ConfigParameters, Ecma2ConfigParameters>();
-            this.Services.AddLogging(config =>
-            {
-                config.SetMinimumLevel(LogLevel.Trace);
-                config.AddDebug();
-                config.AddEventLog(settings =>
-                {
-                    settings.Filter = (source, level) => level >= LogLevel.Trace;
-                    settings.LogName = bootstrapper.EventLogName ?? "Application";
-                    settings.SourceName = bootstrapper.EventLogSource ?? bootstrapper.ManagementAgentName ?? "Lithnet.Ecma2Framework";
-                });
-            });
-        }
-
-        public IServiceCollection Services { get; }
-
-        public ServiceProvider Build()
-        {
+            this.Services.AddSingleton<IConfigParameters>(config);
+            this.Bootstrapper.SetupServices(this.Services, config);
+            this.AddInternalServices();
             return this.Services.BuildServiceProvider();
         }
     }

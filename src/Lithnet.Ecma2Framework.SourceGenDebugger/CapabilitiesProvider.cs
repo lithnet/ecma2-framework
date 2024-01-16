@@ -10,7 +10,7 @@ namespace Lithnet.Ecma2Framework.SourceGenDebugger
 {
     internal class CapabilitiesProvider : ICapabilitiesProvider
     {
-        public Task<MACapabilities> GetCapabilitiesExAsync(KeyedCollection<string, ConfigParameter> configParameters)
+        public Task<MACapabilities> GetCapabilitiesAsync(KeyedCollection<string, ConfigParameter> configParameters)
         {
             throw new NotImplementedException();
         }

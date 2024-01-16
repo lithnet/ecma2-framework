@@ -6,7 +6,7 @@ namespace Lithnet.Ecma2Framework
 {
     public interface IObjectPasswordProvider
     {
-        Task InitializeAsync(IPasswordContext context);
+        Task InitializeAsync(PasswordContext context);
 
         Task<bool> CanPerformPasswordOperationAsync(CSEntry csentry);
 

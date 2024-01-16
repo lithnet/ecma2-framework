@@ -4,12 +4,12 @@ namespace Lithnet.Ecma2Framework
 {
     public interface IOperationInitializer
     {
-        Task InitializeImportAsync(IImportContext context);
+        Task InitializeImportAsync(ImportContext context);
 
-        Task InitializeExportAsync(IExportContext context);
+        Task InitializeExportAsync(ExportContext context);
 
-        Task InitializePasswordOperationAsync(IPasswordContext context);
+        Task InitializePasswordOperationAsync(PasswordContext context);
 
-        Task InitializeSchemaOperationAsync(ISchemaContext context);
+        Task InitializeSchemaOperationAsync(SchemaContext context);
     }
 }

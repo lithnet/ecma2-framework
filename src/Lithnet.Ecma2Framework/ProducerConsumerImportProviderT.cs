@@ -12,7 +12,7 @@ namespace Lithnet.Ecma2Framework
     {
         private readonly ILogger logger;
 
-        protected IImportContext ImportContext { get; private set; }
+        protected ImportContext ImportContext { get; private set; }
 
         public ProducerConsumerImportProvider(ILogger logger)
         {
@@ -21,7 +21,7 @@ namespace Lithnet.Ecma2Framework
 
         public abstract Task<bool> CanImportAsync(SchemaType type);
 
-        public async Task InitializeAsync(IImportContext context)
+        public async Task InitializeAsync(ImportContext context)
         {
             this.ImportContext = context;
             await this.OnInitializeAsync();

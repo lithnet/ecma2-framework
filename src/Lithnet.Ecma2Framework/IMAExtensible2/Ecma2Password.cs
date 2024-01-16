@@ -10,27 +10,20 @@ using Microsoft.MetadirectoryServices;
 
 namespace Lithnet.Ecma2Framework
 {
-    public class Ecma2Password
+    public class Ecma2Password : Ecma2Base
     {
-        private readonly ILogger logger;
-        private readonly IServiceProvider serviceProvider;
-        private readonly IEcma2ConfigParameters configParameters;
-
         private List<IObjectPasswordProvider> providerCache;
         private PasswordContext passwordContext;
 
-        public Ecma2Password(Ecma2Initializer init)
+        public Ecma2Password(Ecma2Initializer initializer) : base(initializer)
         {
-            this.serviceProvider = init.Build();
-            this.logger = this.serviceProvider.GetRequiredService<ILogger<Ecma2Password>>();
-            this.configParameters = this.serviceProvider.GetRequiredService<IEcma2ConfigParameters>();
         }
 
         private List<IObjectPasswordProvider> Providers
         {
             get
             {
-                this.providerCache ??= this.serviceProvider.GetServices<IObjectPasswordProvider>().ToList();
+                this.providerCache ??= this.ServiceProvider.GetServices<IObjectPasswordProvider>().ToList();
                 return this.providerCache;
             }
         }
@@ -42,22 +35,19 @@ namespace Lithnet.Ecma2Framework
 
         public async Task OpenPasswordConnectionAsync(KeyedCollection<string, ConfigParameter> configParameters, Partition partition)
         {
-            this.configParameters.SetConfigParameters(configParameters);
+            this.InitializeDIContainer(configParameters);
 
-            this.passwordContext = new PasswordContext()
-            {
-                ConfigParameters = configParameters
-            };
+            this.passwordContext = new PasswordContext();
 
-            var initializers = this.serviceProvider.GetServices<IOperationInitializer>();
+            var initializers = this.ServiceProvider.GetServices<IOperationInitializer>();
 
             if (initializers != null)
             {
                 foreach (var initializer in initializers)
                 {
-                    this.logger.LogInformation("Launching initializer");
+                    this.Logger.LogInformation("Launching initializer");
                     await initializer.InitializePasswordOperationAsync(this.passwordContext);
-                    this.logger.LogInformation("Initializer complete");
+                    this.Logger.LogInformation("Initializer complete");
                 }
             }
 
@@ -75,14 +65,14 @@ namespace Lithnet.Ecma2Framework
         {
             try
             {
-                this.logger.LogTrace($"Setting password for: {csentry.DN}");
+                this.Logger.LogTrace($"Setting password for: {csentry.DN}");
                 IObjectPasswordProvider provider = await this.GetProviderForTypeAsync(csentry);
                 await provider.SetPasswordAsync(csentry, newPassword, options);
-                this.logger.LogInformation($"Successfully set password for: {csentry.DN}");
+                this.Logger.LogInformation($"Successfully set password for: {csentry.DN}");
             }
             catch (Exception ex)
             {
-                this.logger.LogError(ex, $"Error setting password for {csentry.DN}");
+                this.Logger.LogError(ex, $"Error setting password for {csentry.DN}");
                 throw;
             }
         }
@@ -91,14 +81,14 @@ namespace Lithnet.Ecma2Framework
         {
             try
             {
-                this.logger.LogInformation($"Changing password for: {csentry.DN}");
+                this.Logger.LogInformation($"Changing password for: {csentry.DN}");
                 IObjectPasswordProvider provider = await this.GetProviderForTypeAsync(csentry);
                 await provider.ChangePasswordAsync(csentry, oldPassword, newPassword);
-                this.logger.LogInformation($"Successfully changed password for: {csentry.DN}");
+                this.Logger.LogInformation($"Successfully changed password for: {csentry.DN}");
             }
             catch (Exception ex)
             {
-                this.logger.LogError(ex, $"Error changing password for {csentry.DN}");
+                this.Logger.LogError(ex, $"Error changing password for {csentry.DN}");
                 throw;
             }
         }

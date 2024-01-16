@@ -5,7 +5,7 @@ namespace Lithnet.Ecma2Framework
 {
     public interface IObjectImportProvider
     {
-        Task InitializeAsync(IImportContext context);
+        Task InitializeAsync(ImportContext context);
 
         Task<bool> CanImportAsync(SchemaType type);
 

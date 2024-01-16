@@ -3,71 +3,65 @@ using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.Linq;
+using System.Text.Json;
 using System.Threading.Tasks;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using Microsoft.MetadirectoryServices;
-using Newtonsoft.Json;
 
 namespace Lithnet.Ecma2Framework
 {
-    public class Ecma2Import
+    public class Ecma2Import : Ecma2Base
     {
-        private readonly ILogger logger;
-        private readonly IEcma2ConfigParameters configParameters;
-
-        public static bool AttachDebuggerOnLaunch { get; set; } = true;
-
+        private static JsonSerializerOptions jsonOptions = new JsonSerializerOptions()
+        {
+            PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
+            PropertyNameCaseInsensitive = true
+        };
         private ImportContext importContext;
 
-        private readonly IServiceProvider serviceProvider;
-
-        public Ecma2Import(Ecma2Initializer init)
+        public Ecma2Import(Ecma2Initializer initializer) : base(initializer)
         {
-            this.serviceProvider = init.Build();
-            this.logger = this.serviceProvider.GetRequiredService<ILogger<Ecma2Import>>();
-            this.configParameters = this.serviceProvider.GetRequiredService<IEcma2ConfigParameters>();
         }
 
         private int Batch { get; set; }
 
         public async Task<OpenImportConnectionResults> OpenImportConnectionAsync(KeyedCollection<string, ConfigParameter> configParameters, Schema types, OpenImportConnectionRunStep importRunStep)
         {
-            this.configParameters.SetConfigParameters(configParameters);
+            this.InitializeDIContainer(configParameters);
 
             this.importContext = new ImportContext()
             {
                 RunStep = importRunStep,
                 ImportItems = new BlockingCollection<CSEntryChange>(),
-                ConfigParameters = configParameters,
                 Types = types
             };
 
             try
             {
-                this.logger.LogInformation("Starting {0} import", this.importContext.InDelta ? "delta" : "full");
+                this.Logger.LogInformation("Starting {0} import", this.importContext.InDelta ? "delta" : "full");
 
                 if (!string.IsNullOrEmpty(importRunStep.CustomData))
                 {
                     try
                     {
-                        this.importContext.IncomingWatermark = JsonConvert.DeserializeObject<WatermarkKeyedCollection>(importRunStep.CustomData);
+                        this.importContext.IncomingWatermark = JsonSerializer.Deserialize<WatermarkKeyedCollection>(importRunStep.CustomData, jsonOptions);
                     }
                     catch (Exception ex)
                     {
-                        this.logger.LogError(ex, "Could not deserialize watermark");
+                        this.Logger.LogError(ex, "Could not deserialize watermark");
                     }
                 }
 
-                var initializers = this.serviceProvider.GetServices<IOperationInitializer>();
+                var initializers = this.ServiceProvider.GetServices<IOperationInitializer>();
 
                 if (initializers != null)
                 {
                     foreach (var initializer in initializers)
                     {
-                        this.logger.LogInformation("Launching initializer");
+                        this.Logger.LogInformation("Launching initializer");
                         await initializer.InitializeImportAsync(this.importContext);
-                        this.logger.LogInformation("Initializer complete");
+                        this.Logger.LogInformation("Initializer complete");
                     }
                 }
 
@@ -77,7 +71,7 @@ namespace Lithnet.Ecma2Framework
             }
             catch (Exception ex)
             {
-                this.logger.LogError(ex, "Error opening import connection");
+                this.Logger?.LogError(ex, "Error opening import connection");
                 throw;
             }
 
@@ -97,7 +91,7 @@ namespace Lithnet.Ecma2Framework
             }
 
             this.Batch++;
-            this.logger.LogTrace($"Producing page {this.Batch}");
+            this.Logger.LogTrace($"Producing page {this.Batch}");
 
             while (!this.importContext.ImportItems.IsCompleted || this.importContext.CancellationTokenSource.IsCancellationRequested)
             {
@@ -109,7 +103,7 @@ namespace Lithnet.Ecma2Framework
                     csentry = this.importContext.ImportItems.Take();
                     this.importContext.ImportedItemCount++;
 
-                    this.logger.LogTrace($"Got record {this.importContext.ImportedItemCount}:{csentry.ErrorCodeImport}:{csentry?.ObjectModificationType}:{csentry?.ObjectType}:{csentry?.DN}");
+                    this.Logger.LogTrace($"Got record {this.importContext.ImportedItemCount}:{csentry.ErrorCodeImport}:{csentry?.ObjectModificationType}:{csentry?.ObjectType}:{csentry?.DN}");
                 }
                 catch (InvalidOperationException)
                 {
@@ -134,11 +128,11 @@ namespace Lithnet.Ecma2Framework
 
             if (mayHaveMore)
             {
-                this.logger.LogTrace($"Page {this.Batch} complete");
+                this.Logger.LogTrace($"Page {this.Batch} complete");
             }
             else
             {
-                this.logger.LogInformation("CSEntryChange consumption complete");
+                this.Logger.LogInformation("CSEntryChange consumption complete");
                 this.Batch = 0;
             }
 
@@ -148,11 +142,11 @@ namespace Lithnet.Ecma2Framework
 
         public Task<CloseImportConnectionResults> CloseImportConnectionAsync(CloseImportConnectionRunStep importRunStep)
         {
-            this.logger.LogInformation("Closing import connection: {0}", importRunStep.Reason);
+            this.Logger.LogInformation("Closing import connection: {0}", importRunStep.Reason);
 
             if (this.importContext == null)
             {
-                this.logger.LogTrace("No import context detected");
+                this.Logger.LogTrace("No import context detected");
                 return Task.FromResult(new CloseImportConnectionResults());
             }
 
@@ -162,32 +156,32 @@ namespace Lithnet.Ecma2Framework
             {
                 if (this.importContext.CancellationTokenSource != null)
                 {
-                    this.logger.LogInformation("Cancellation request received");
+                    this.Logger.LogInformation("Cancellation request received");
                     this.importContext.CancellationTokenSource.Cancel();
                     this.importContext.CancellationTokenSource.Token.WaitHandle.WaitOne();
-                    this.logger.LogInformation("Cancellation completed");
+                    this.Logger.LogInformation("Cancellation completed");
                 }
             }
 
-            this.logger.LogInformation("Import operation complete");
-            this.logger.LogInformation($"Imported {this.importContext.ImportedItemCount} objects");
+            this.Logger.LogInformation("Import operation complete");
+            this.Logger.LogInformation($"Imported {this.importContext.ImportedItemCount} objects");
 
             if (this.importContext.ImportedItemCount > 0 && this.importContext.Timer.Elapsed.TotalSeconds > 0)
             {
                 if (this.importContext.ProducerDuration.TotalSeconds > 0)
                 {
-                    this.logger.LogInformation($"CSEntryChange production duration: {this.importContext.ProducerDuration}");
-                    this.logger.LogInformation($"CSEntryChange production speed: {(this.importContext.ImportedItemCount / this.importContext.ProducerDuration.TotalSeconds):N2} obj/sec");
+                    this.Logger.LogInformation($"CSEntryChange production duration: {this.importContext.ProducerDuration}");
+                    this.Logger.LogInformation($"CSEntryChange production speed: {(this.importContext.ImportedItemCount / this.importContext.ProducerDuration.TotalSeconds):N2} obj/sec");
                 }
 
-                this.logger.LogInformation($"Import duration: {this.importContext.Timer.Elapsed}");
-                this.logger.LogInformation($"Import speed: {(this.importContext.ImportedItemCount / this.importContext.Timer.Elapsed.TotalSeconds):N2} obj/sec");
+                this.Logger.LogInformation($"Import duration: {this.importContext.Timer.Elapsed}");
+                this.Logger.LogInformation($"Import speed: {(this.importContext.ImportedItemCount / this.importContext.Timer.Elapsed.TotalSeconds):N2} obj/sec");
             }
 
             if (this.importContext.OutgoingWatermark?.Any() == true)
             {
-                string wm = JsonConvert.SerializeObject(this.importContext.OutgoingWatermark);
-                this.logger.LogTrace($"Watermark: {wm}");
+                string wm = JsonSerializer.Serialize(this.importContext.OutgoingWatermark, jsonOptions);
+                this.Logger.LogTrace($"Watermark: {wm}");
                 return Task.FromResult(new CloseImportConnectionResults(wm));
             }
             else
@@ -198,7 +192,7 @@ namespace Lithnet.Ecma2Framework
 
         private Task StartCreatingCSEntryChangesAsync()
         {
-            this.logger.LogInformation("Starting producer thread");
+            this.Logger.LogInformation("Starting producer thread");
 
             try
             {
@@ -213,17 +207,17 @@ namespace Lithnet.Ecma2Framework
             }
             catch (OperationCanceledException)
             {
-                this.logger.LogInformation("Producer thread cancelled");
+                this.Logger.LogInformation("Producer thread cancelled");
             }
             catch (Exception ex)
             {
-                this.logger.LogError(ex, "Producer thread encountered an exception");
+                this.Logger.LogError(ex, "Producer thread encountered an exception");
                 throw;
             }
             finally
             {
                 this.importContext.ProducerDuration = this.importContext.Timer.Elapsed;
-                this.logger.LogInformation("CSEntryChange production complete");
+                this.Logger.LogInformation("CSEntryChange production complete");
                 this.importContext.ImportItems.CompleteAdding();
             }
 
@@ -233,15 +227,15 @@ namespace Lithnet.Ecma2Framework
         private async Task CreateCSEntryChangesForTypeAsync(SchemaType type)
         {
             IObjectImportProvider provider = await this.GetProviderForTypeAsync(type);
-            this.logger.LogInformation($"Starting import of type {type.Name}");
+            this.Logger.LogInformation($"Starting import of type {type.Name}");
             await provider.InitializeAsync(this.importContext);
             await provider.GetCSEntryChangesAsync(type);
-            this.logger.LogInformation($"Import of type {type.Name} completed");
+            this.Logger.LogInformation($"Import of type {type.Name} completed");
         }
 
         private async Task<IObjectImportProvider> GetProviderForTypeAsync(SchemaType type)
         {
-            foreach (IObjectImportProvider provider in this.serviceProvider.GetServices<IObjectImportProvider>())
+            foreach (IObjectImportProvider provider in this.ServiceProvider.GetServices<IObjectImportProvider>())
             {
                 if (await provider.CanImportAsync(type))
                 {

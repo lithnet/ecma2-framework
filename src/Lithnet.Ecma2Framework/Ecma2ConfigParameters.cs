@@ -1,18 +1,38 @@
-﻿using System.Collections.ObjectModel;
+﻿using System.Collections.Generic;
+using System.Collections.ObjectModel;
 using Microsoft.MetadirectoryServices;
 
 namespace Lithnet.Ecma2Framework
 {
-    public class Ecma2ConfigParameters : IEcma2ConfigParameters
+    public class Ecma2ConfigParameters : IConfigParameters
     {
-        public KeyedCollection<string, ConfigParameter> Parameters { get; private set; }
-
-        public string GetConfigParameter(string name)
+        public Ecma2ConfigParameters()
         {
-            return this.GetConfigParameter(name, null);
         }
 
-        public string GetConfigParameter(string name, string defaultValue)
+        public Ecma2ConfigParameters(KeyedCollection<string, ConfigParameter> parameters)
+        {
+            this.Parameters = parameters;
+        }
+
+        public KeyedCollection<string, ConfigParameter> Parameters { get; }
+
+        public bool HasValue(string name)
+        {
+            if (this.Parameters == null)
+            {
+                return false;
+            }
+
+            return this.Parameters.Contains(name);
+        }
+
+        public string GetString(string name)
+        {
+            return this.GetString(name, null);
+        }
+
+        public string GetString(string name, string defaultValue)
         {
             if (this.Parameters == null)
             {
@@ -36,9 +56,73 @@ namespace Lithnet.Ecma2Framework
             }
         }
 
-        void IEcma2ConfigParameters.SetConfigParameters(KeyedCollection<string, ConfigParameter> parameters)
+        public bool GetBool(string name, bool defaultValue)
         {
-            this.Parameters = parameters;
+            string value = this.GetString(name);
+
+            if (string.IsNullOrWhiteSpace(value))
+            {
+                return defaultValue;
+            }
+
+            if (bool.TryParse(value, out bool result))
+            {
+                return result;
+            }
+            else
+            {
+                return defaultValue;
+            }
+        }
+
+        public int GetInt(string name, int defaultValue)
+        {
+            string value = this.GetString(name);
+
+            if (string.IsNullOrWhiteSpace(value))
+            {
+                return defaultValue;
+            }
+
+            if (int.TryParse(value, out int result))
+            {
+                return result;
+            }
+            else
+            {
+                return defaultValue;
+            }
+        }
+
+        public long GetLong(string name, long defaultValue)
+        {
+            string value = this.GetString(name);
+
+            if (string.IsNullOrWhiteSpace(value))
+            {
+                return defaultValue;
+            }
+
+            if (long.TryParse(value, out long result))
+            {
+                return result;
+            }
+            else
+            {
+                return defaultValue;
+            }
+        }
+
+        public List<string> GetList(string name, string separator)
+        {
+            string value = this.GetString(name);
+
+            if (string.IsNullOrWhiteSpace(value))
+            {
+                return new List<string>();
+            }
+
+            return new List<string>(value.Split(new string[] { separator }, System.StringSplitOptions.RemoveEmptyEntries));
         }
     }
 }

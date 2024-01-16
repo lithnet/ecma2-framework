@@ -1,6 +1,5 @@
 ﻿using System;
 using System.Collections.Concurrent;
-using System.Collections.ObjectModel;
 using System.Diagnostics;
 using System.Threading;
 using System.Threading.Tasks;
@@ -8,16 +7,16 @@ using Microsoft.MetadirectoryServices;
 
 namespace Lithnet.Ecma2Framework
 {
-    public class ImportContext : IImportContext
+    public class ImportContext
     {
         public ImportContext()
         {
             this.OutgoingWatermark = new WatermarkKeyedCollection();
         }
 
-        public bool InDelta => this.RunStep?.ImportType == OperationType.Delta;
+        public OpenImportConnectionRunStep RunStep { get; internal set; }
 
-        public KeyedCollection<string, ConfigParameter> ConfigParameters { get; internal set; }
+        public bool InDelta => this.RunStep?.ImportType == OperationType.Delta;
 
         public WatermarkKeyedCollection IncomingWatermark { get; internal set; }
 
@@ -25,13 +24,13 @@ namespace Lithnet.Ecma2Framework
 
         public Schema Types { get; internal set; }
 
-        internal CancellationTokenSource CancellationTokenSource { get; } = new CancellationTokenSource();
-
         public CancellationToken Token => this.CancellationTokenSource.Token;
 
         public BlockingCollection<CSEntryChange> ImportItems { get; internal set; }
 
         public object CustomData { get; set; }
+
+        internal CancellationTokenSource CancellationTokenSource { get; } = new CancellationTokenSource();
 
         internal Stopwatch Timer { get; } = new Stopwatch();
 
@@ -40,7 +39,5 @@ namespace Lithnet.Ecma2Framework
         internal TimeSpan ProducerDuration { get; set; }
 
         internal Task Producer { get; set; }
-
-        public OpenImportConnectionRunStep RunStep { get; internal set; }
     }
 }

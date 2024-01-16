@@ -8,93 +8,79 @@ using Microsoft.MetadirectoryServices;
 
 namespace Lithnet.Ecma2Framework
 {
-    public class Ecma2
+    public class Ecma2 : Ecma2Base
     {
-        private readonly ILogger logger;
-        private readonly IServiceProvider serviceProvider;
-        private readonly IEcma2ConfigParameters configParameters;
-
-        public Ecma2(Ecma2Initializer init)
+        public Ecma2(Ecma2Initializer initializer) : base(initializer)
         {
-            this.serviceProvider = init.Build();
-            this.logger = this.serviceProvider.GetRequiredService<ILogger<Ecma2>>();
-            this.configParameters = this.serviceProvider.GetRequiredService<IEcma2ConfigParameters>();
         }
 
         public async Task<Schema> GetSchemaAsync(KeyedCollection<string, ConfigParameter> configParameters)
         {
             try
             {
-                this.configParameters.SetConfigParameters(configParameters);
+                this.InitializeDIContainer(configParameters);
 
-                SchemaContext context = new SchemaContext()
-                {
-                    ConfigParameters = configParameters,
-                };
+                SchemaContext context = new SchemaContext();
 
-                var initializers = this.serviceProvider.GetServices<IOperationInitializer>();
+                var initializers = this.ServiceProvider.GetServices<IOperationInitializer>();
 
                 if (initializers != null)
                 {
                     foreach (var initializer in initializers)
                     {
-                        this.logger.LogInformation("Launching initializer");
+                        this.Logger.LogInformation("Launching initializer");
                         await initializer.InitializeSchemaOperationAsync(context);
-                        this.logger.LogInformation("Initializer complete");
+                        this.Logger.LogInformation("Initializer complete");
                     }
                 }
 
-                ISchemaProvider provider = this.serviceProvider.GetRequiredService<ISchemaProvider>();
+                ISchemaProvider provider = this.ServiceProvider.GetRequiredService<ISchemaProvider>();
 
                 return await provider.GetMmsSchemaAsync(context);
             }
             catch (Exception ex)
             {
-                this.logger.LogError(ex, "Could not retrieve schema");
+                this.Logger?.LogError(ex, "Could not retrieve schema");
                 throw;
             }
         }
 
-        public async Task<MACapabilities> GetCapabilitiesExAsync(KeyedCollection<string, ConfigParameter> configParameters)
+        public async Task<MACapabilities> GetCapabilitiesAsync(KeyedCollection<string, ConfigParameter> configParameters)
         {
             try
             {
-                this.configParameters.SetConfigParameters(configParameters);
-                ICapabilitiesProvider provider = this.serviceProvider.GetRequiredService<ICapabilitiesProvider>();
-                return await provider.GetCapabilitiesExAsync(configParameters);
+                this.InitializeDIContainer(configParameters);
+
+                ICapabilitiesProvider provider = this.ServiceProvider.GetRequiredService<ICapabilitiesProvider>();
+                return await provider.GetCapabilitiesAsync(configParameters);
             }
             catch (Exception ex)
             {
-                this.logger.LogError(ex, "Could not get capabilities");
+                this.Logger?.LogError(ex, "Could not get capabilities");
                 throw;
             }
         }
 
-        public async Task<IList<ConfigParameterDefinition>> GetConfigParametersExAsync(KeyedCollection<string, ConfigParameter> configParameters, ConfigParameterPage page, int pageNumber)
+        public async Task<IList<ConfigParameterDefinition>> GetConfigParametersAsync(KeyedCollection<string, ConfigParameter> configParameters, ConfigParameterPage page, int pageNumber)
         {
             try
             {
-                this.configParameters.SetConfigParameters(configParameters);
+                this.InitializeDIContainer(configParameters);
 
                 var configParameterDefinitions = new List<ConfigParameterDefinition>();
 
-                if (pageNumber == 1)
-                {
-                    //Logging.AddBuiltInLoggingParameters(page, configParameterDefinitions);
-                }
-
-                IConfigParametersProviderEx provider = this.serviceProvider.GetService<IConfigParametersProviderEx>();
+                IConfigParametersProvider provider = this.ServiceProvider.GetService<IConfigParametersProvider>();
 
                 if (provider != null)
                 {
-                    await provider.GetConfigParametersExAsync(configParameters, configParameterDefinitions, page, pageNumber);
+                    await provider.GetConfigParametersAsync(configParameters, configParameterDefinitions, page, pageNumber);
                 }
 
                 return configParameterDefinitions;
             }
             catch (Exception ex)
             {
-                this.logger.LogError(ex, "Could not get config parameters");
+                this.Logger?.LogError(ex, "Could not get config parameters");
                 throw;
             }
         }
@@ -103,20 +89,20 @@ namespace Lithnet.Ecma2Framework
         {
             try
             {
-                this.configParameters.SetConfigParameters(configParameters);
+                this.InitializeDIContainer(configParameters);
 
-                IConfigParametersProviderEx provider = this.serviceProvider.GetService<IConfigParametersProviderEx>();
+                IConfigParametersProvider provider = this.ServiceProvider.GetService<IConfigParametersProvider>();
 
                 if (provider != null)
                 {
-                    return await provider.ValidateConfigParametersExAsync(configParameters, page, pageNumber);
+                    return await provider.ValidateConfigParametersAsync(configParameters, page, pageNumber);
                 }
 
                 return new ParameterValidationResult();
             }
             catch (Exception ex)
             {
-                this.logger.LogError(ex, "Could not validate config parameters");
+                this.Logger?.LogError(ex, "Could not validate config parameters");
                 throw;
             }
         }

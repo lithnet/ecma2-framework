@@ -218,12 +218,12 @@ namespace Lithnet.Ecma2Framework
 
         MACapabilities IMAExtensible2GetCapabilitiesEx.GetCapabilitiesEx(KeyedCollection<string, ConfigParameter> configParameters)
         {
-            return AsyncHelper.RunSync(this.provider.GetCapabilitiesExAsync(configParameters));
+            return AsyncHelper.RunSync(this.provider.GetCapabilitiesAsync(configParameters));
         }
 
         IList<ConfigParameterDefinition> IMAExtensible2GetParametersEx.GetConfigParametersEx(KeyedCollection<string, ConfigParameter> configParameters, ConfigParameterPage page, int pageNumber)
         {
-            return AsyncHelper.RunSync(this.provider.GetConfigParametersExAsync(configParameters, page, pageNumber));
+            return AsyncHelper.RunSync(this.provider.GetConfigParametersAsync(configParameters, page, pageNumber));
         }
 
         ParameterValidationResult IMAExtensible2GetParametersEx.ValidateConfigParametersEx(KeyedCollection<string, ConfigParameter> configParameters, ConfigParameterPage page, int pageNumber)
@@ -238,7 +238,7 @@ namespace Lithnet.Ecma2Framework
 
         IList<ConfigParameterDefinition> IMAExtensible2GetParameters.GetConfigParameters(KeyedCollection<string, ConfigParameter> configParameters, ConfigParameterPage page)
         {
-            return AsyncHelper.RunSync(this.provider.GetConfigParametersExAsync(configParameters, page, 1));
+            return AsyncHelper.RunSync(this.provider.GetConfigParametersAsync(configParameters, page, 1));
         }
 
         ParameterValidationResult IMAExtensible2GetParameters.ValidateConfigParameters(KeyedCollection<string, ConfigParameter> configParameters, ConfigParameterPage page)
@@ -295,7 +295,7 @@ namespace Lithnet.Ecma2Framework
                     {
                         this.HasCapabilityProvider = true;
                     }
-                    else if (declaredSymbol.HasInterface(context, typeof(IConfigParametersProviderEx).FullName))
+                    else if (declaredSymbol.HasInterface(context, typeof(IConfigParametersProvider).FullName))
                     {
                         this.HasConfigProvider = true;
                     }
@@ -341,9 +341,9 @@ namespace Lithnet.Ecma2Framework
                     {
                         this.AddTypeToList(typeof(ICapabilitiesProvider).FullName, fullyQualifiedName);
                     }
-                    else if (declaredSymbol.HasInterface(context, typeof(IConfigParametersProviderEx).FullName))
+                    else if (declaredSymbol.HasInterface(context, typeof(IConfigParametersProvider).FullName))
                     {
-                        this.AddTypeToList(typeof(IConfigParametersProviderEx).FullName, fullyQualifiedName);
+                        this.AddTypeToList(typeof(IConfigParametersProvider).FullName, fullyQualifiedName);
                     }
                     else if (declaredSymbol.HasInterface(context, typeof(IObjectExportProvider).FullName))
                     {
@@ -364,10 +364,6 @@ namespace Lithnet.Ecma2Framework
                     else if (declaredSymbol.HasInterface(context, typeof(IOperationInitializer).FullName))
                     {
                         this.AddTypeToList(typeof(IOperationInitializer).FullName, fullyQualifiedName);
-                    }
-                    else if (declaredSymbol.HasInterface(context, typeof(ISettingsProvider).FullName))
-                    {
-                        this.AddTypeToList(typeof(ISettingsProvider).FullName, fullyQualifiedName);
                     }
                 }
             }

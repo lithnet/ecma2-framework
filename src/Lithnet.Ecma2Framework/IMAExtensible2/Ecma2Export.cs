@@ -11,20 +11,13 @@ using Microsoft.MetadirectoryServices;
 
 namespace Lithnet.Ecma2Framework
 {
-    public class Ecma2Export
+    public class Ecma2Export : Ecma2Base
     {
-        private readonly ILogger logger;
-        private readonly IEcma2ConfigParameters configParameters;
-        private readonly IServiceProvider serviceProvider;
-
         private List<IObjectExportProvider> providerCache;
         private ExportContext exportContext;
 
-        public Ecma2Export(Ecma2Initializer init)
+        public Ecma2Export(Ecma2Initializer initializer) : base(initializer)
         {
-            this.serviceProvider = init.Build();
-            this.logger = this.serviceProvider.GetRequiredService<ILogger<Ecma2Export>>();
-            this.configParameters = this.serviceProvider.GetRequiredService<IEcma2ConfigParameters>();
         }
 
         private List<IObjectExportProvider> Providers
@@ -33,71 +26,32 @@ namespace Lithnet.Ecma2Framework
             {
                 if (this.providerCache == null)
                 {
-                    this.providerCache = this.serviceProvider.GetServices<IObjectExportProvider>().ToList();
+                    this.providerCache = this.ServiceProvider.GetServices<IObjectExportProvider>().ToList();
                 }
 
                 return this.providerCache;
             }
         }
 
-        public Task CloseExportConnectionAsync(CloseExportConnectionRunStep exportRunStep)
-        {
-            this.logger.LogInformation($"Closing export connection: {exportRunStep.Reason}");
-
-            if (this.exportContext == null)
-            {
-                this.logger.LogTrace("No export context detected");
-                return Task.CompletedTask;
-            }
-
-            this.exportContext.Timer.Stop();
-
-            if (exportRunStep.Reason != CloseReason.Normal)
-            {
-                if (this.exportContext.CancellationTokenSource != null)
-                {
-                    this.logger.LogInformation("Cancellation request received");
-                    this.exportContext.CancellationTokenSource.Cancel();
-                    this.exportContext.CancellationTokenSource.Token.WaitHandle.WaitOne();
-                    this.logger.LogInformation("Cancellation completed");
-                }
-            }
-
-            this.logger.LogInformation("Export operation complete");
-            this.logger.LogInformation($"Exported {this.exportContext.ExportedItemCount} objects");
-            this.logger.LogInformation($"Export duration: {this.exportContext.Timer.Elapsed}");
-
-            if (this.exportContext.ExportedItemCount > 0 && this.exportContext.Timer.Elapsed.TotalSeconds > 0)
-            {
-                this.logger.LogInformation($"Speed: {(this.exportContext.ExportedItemCount / this.exportContext.Timer.Elapsed.TotalSeconds):N2} obj/sec");
-                this.logger.LogInformation($"Average: {(this.exportContext.Timer.Elapsed.TotalSeconds / this.exportContext.ExportedItemCount):N2} sec/obj");
-            }
-
-            return Task.CompletedTask;
-        }
-
         public async Task OpenExportConnectionAsync(KeyedCollection<string, ConfigParameter> configParameters, Schema types, OpenExportConnectionRunStep exportRunStep)
         {
-            this.configParameters.SetConfigParameters(configParameters);
+            this.InitializeDIContainer(configParameters);
 
-            this.exportContext = new ExportContext()
-            {
-                ConfigParameters = configParameters
-            };
+            this.exportContext = new ExportContext();
 
             try
             {
-                this.logger.LogInformation("Starting export");
+                this.Logger.LogInformation("Starting export");
 
-                var initializers = this.serviceProvider.GetServices<IOperationInitializer>();
+                var initializers = this.ServiceProvider.GetServices<IOperationInitializer>();
 
                 if (initializers != null)
                 {
                     foreach (var initializer in initializers)
                     {
-                        this.logger.LogInformation("Launching initializer");
+                        this.Logger.LogInformation("Launching initializer");
                         await initializer.InitializeExportAsync(this.exportContext);
-                        this.logger.LogInformation("Initializer complete");
+                        this.Logger.LogInformation("Initializer complete");
                     }
                 }
 
@@ -106,22 +60,22 @@ namespace Lithnet.Ecma2Framework
             }
             catch (Exception ex)
             {
-                this.logger.LogError(ex, "Failed to open export connection");
+                this.Logger?.LogError(ex, "Failed to open export connection");
                 throw;
             }
         }
 
-        public Task<PutExportEntriesResults> PutExportEntriesAsync(IList<CSEntryChange> csentries)
+        public Task<PutExportEntriesResults> PutExportEntriesAsync(IList<CSEntryChange> csEntries)
         {
             PutExportEntriesResults results = new PutExportEntriesResults();
 
             ParallelOptions po = new ParallelOptions
             {
-                MaxDegreeOfParallelism = GlobalSettings.ExportThreadCount,
+                MaxDegreeOfParallelism = Math.Max(1, this.exportContext.ExportThreads),
                 CancellationToken = this.exportContext.Token
             };
 
-            Parallel.ForEach(csentries, po, (csentry) =>
+            Parallel.ForEach(csEntries, po, (csentry) =>
             {
                 Stopwatch timer = new Stopwatch();
 
@@ -129,7 +83,7 @@ namespace Lithnet.Ecma2Framework
                 string record = $"{number}:{csentry.ObjectModificationType}:{csentry.ObjectType}:{csentry.DN}";
                 CSEntryChangeResult result = null;
 
-                this.logger.LogInformation($"Exporting record {record}");
+                this.Logger.LogInformation($"Exporting record {record}");
 
                 try
                 {
@@ -138,7 +92,7 @@ namespace Lithnet.Ecma2Framework
                 }
                 catch (Exception ex)
                 {
-                    this.logger.LogError(ex, $"An error occurred exporting record {record}");
+                    this.Logger.LogError(ex, $"An error occurred exporting record {record}");
                     result = CSEntryChangeResult.Create(csentry.Identifier, null, MAExportError.ExportErrorCustomContinueRun, ex.Message, ex.ToString());
                 }
                 finally
@@ -147,7 +101,7 @@ namespace Lithnet.Ecma2Framework
 
                     if (result == null)
                     {
-                        this.logger.LogError($"CSEntryResult for object {record} was null");
+                        this.Logger.LogError($"CSEntryResult for object {record} was null");
                     }
                     else
                     {
@@ -157,12 +111,49 @@ namespace Lithnet.Ecma2Framework
                         }
                     }
 
-                    this.logger.LogTrace($"Export of record {record} returned '{result?.ErrorCode.ToString().ToLower() ?? "<null>"}' and took {timer.Elapsed}");
+                    this.Logger.LogTrace($"Export of record {record} returned '{result?.ErrorCode.ToString().ToLower() ?? "<null>"}' and took {timer.Elapsed}");
                 }
             });
 
-            this.logger.LogInformation($"Page complete. Export count: {this.exportContext.ExportedItemCount}");
+            this.Logger.LogInformation($"Page complete. Export count: {this.exportContext.ExportedItemCount}");
             return Task.FromResult(results);
+        }
+
+
+        public Task CloseExportConnectionAsync(CloseExportConnectionRunStep exportRunStep)
+        {
+            this.Logger.LogInformation($"Closing export connection: {exportRunStep.Reason}");
+
+            if (this.exportContext == null)
+            {
+                this.Logger.LogTrace("No export context detected");
+                return Task.CompletedTask;
+            }
+
+            this.exportContext.Timer.Stop();
+
+            if (exportRunStep.Reason != CloseReason.Normal)
+            {
+                if (this.exportContext.CancellationTokenSource != null)
+                {
+                    this.Logger.LogInformation("Cancellation request received");
+                    this.exportContext.CancellationTokenSource.Cancel();
+                    this.exportContext.CancellationTokenSource.Token.WaitHandle.WaitOne();
+                    this.Logger.LogInformation("Cancellation completed");
+                }
+            }
+
+            this.Logger.LogInformation("Export operation complete");
+            this.Logger.LogInformation($"Exported {this.exportContext.ExportedItemCount} objects");
+            this.Logger.LogInformation($"Export duration: {this.exportContext.Timer.Elapsed}");
+
+            if (this.exportContext.ExportedItemCount > 0 && this.exportContext.Timer.Elapsed.TotalSeconds > 0)
+            {
+                this.Logger.LogInformation($"Speed: {(this.exportContext.ExportedItemCount / this.exportContext.Timer.Elapsed.TotalSeconds):N2} obj/sec");
+                this.Logger.LogInformation($"Average: {(this.exportContext.Timer.Elapsed.TotalSeconds / this.exportContext.ExportedItemCount):N2} sec/obj");
+            }
+
+            return Task.CompletedTask;
         }
 
         private async Task<CSEntryChangeResult> PutCSEntryChangeAsync(CSEntryChange csentry)

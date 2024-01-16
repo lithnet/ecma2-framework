@@ -5,7 +5,7 @@ namespace Lithnet.Ecma2Framework
 {
     public interface IObjectExportProvider
     {
-        Task InitializeAsync(IExportContext context);
+        Task InitializeAsync(ExportContext context);
 
         Task<bool> CanExportAsync(CSEntryChange csentry);
 
