@@ -16,7 +16,8 @@ namespace Lithnet.Ecma2Framework
         private static readonly JsonSerializerOptions jsonOptions = new JsonSerializerOptions()
         {
             PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
-            PropertyNameCaseInsensitive = true
+            PropertyNameCaseInsensitive = true,
+            WriteIndented = false
         };
 
         private ImportContext importContext;
