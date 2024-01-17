@@ -22,18 +22,6 @@ namespace Lithnet.Ecma2Framework
 
                 SchemaContext context = new SchemaContext();
 
-                var initializers = this.ServiceProvider.GetServices<IContextInitializer>();
-
-                if (initializers != null)
-                {
-                    foreach (var initializer in initializers)
-                    {
-                        this.Logger.LogInformation("Launching initializer");
-                        await initializer.InitializeSchemaOperationAsync(context);
-                        this.Logger.LogInformation("Initializer complete");
-                    }
-                }
-
                 ISchemaProvider provider = this.ServiceProvider.GetRequiredService<ISchemaProvider>();
 
                 return await provider.GetMmsSchemaAsync(context);

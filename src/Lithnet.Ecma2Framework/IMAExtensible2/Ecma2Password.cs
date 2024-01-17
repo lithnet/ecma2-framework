@@ -13,7 +13,7 @@ namespace Lithnet.Ecma2Framework
     public class Ecma2Password : Ecma2Base
     {
         private List<IObjectPasswordProvider> providerCache;
-        private PasswordContext passwordContext;
+        private PasswordContext context;
 
         public Ecma2Password(Ecma2Initializer initializer) : base(initializer)
         {
@@ -37,25 +37,24 @@ namespace Lithnet.Ecma2Framework
         {
             this.InitializeDIContainer(configParameters);
 
-            this.passwordContext = new PasswordContext() { Partition = partition };
+            this.context = new PasswordContext() { Partition = partition };
 
-            var initializers = this.ServiceProvider.GetServices<IContextInitializer>();
+            var initializer = this.ServiceProvider.GetService<IContextInitializer>();
 
-            if (initializers != null)
+            if (initializer != null)
             {
-                foreach (var initializer in initializers)
+                this.Logger.LogInformation("Launching initializer");
+
+                try
                 {
-                    this.Logger.LogInformation("Launching initializer");
-                    try
-                    {
-                        await initializer.InitializePasswordOperationAsync(this.passwordContext);
-                    }
-                    catch (NotImplementedException) { }
-                    this.Logger.LogInformation("Initializer complete");
+                    await initializer.InitializePasswordOperationAsync(this.context);
                 }
+                catch (NotImplementedException) { }
+
+                this.Logger.LogInformation("Initializer complete");
             }
 
-            await this.InitializeProvidersAsync(this.passwordContext);
+            await this.InitializeProvidersAsync(this.context);
         }
 
         public Task ClosePasswordConnectionAsync()

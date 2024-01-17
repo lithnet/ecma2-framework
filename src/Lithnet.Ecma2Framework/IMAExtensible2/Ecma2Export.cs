@@ -14,7 +14,7 @@ namespace Lithnet.Ecma2Framework
     public class Ecma2Export : Ecma2Base
     {
         private List<IObjectExportProvider> providerCache;
-        private ExportContext exportContext;
+        private ExportContext context;
 
         public Ecma2Export(Ecma2Initializer initializer) : base(initializer)
         {
@@ -37,31 +37,29 @@ namespace Lithnet.Ecma2Framework
         {
             this.InitializeDIContainer(configParameters);
 
-            this.exportContext = new ExportContext();
+            this.context = new ExportContext();
 
             try
             {
                 this.Logger.LogInformation("Starting export");
 
-                var initializers = this.ServiceProvider.GetServices<IContextInitializer>();
+                var initializer = this.ServiceProvider.GetService<IContextInitializer>();
 
-                if (initializers != null)
+                if (initializer != null)
                 {
-                    foreach (var initializer in initializers)
+                    this.Logger.LogInformation("Launching initializer");
+                    
+                    try
                     {
-                        this.Logger.LogInformation("Launching initializer");
-                        try
-                        {
-                            await initializer.InitializeExportAsync(this.exportContext);
-                        }
-                        catch (NotImplementedException) { }
-
-                        this.Logger.LogInformation("Initializer complete");
+                        await initializer.InitializeExportAsync(this.context);
                     }
+                    catch (NotImplementedException) { }
+
+                    this.Logger.LogInformation("Initializer complete");
                 }
 
-                await this.InitializeProvidersAsync(this.exportContext);
-                this.exportContext.Timer.Start();
+                await this.InitializeProvidersAsync(this.context);
+                this.context.Timer.Start();
             }
             catch (Exception ex)
             {
@@ -76,15 +74,15 @@ namespace Lithnet.Ecma2Framework
 
             ParallelOptions po = new ParallelOptions
             {
-                MaxDegreeOfParallelism = Math.Max(1, this.exportContext.ExportThreads),
-                CancellationToken = this.exportContext.Token
+                MaxDegreeOfParallelism = Math.Max(1, this.context.ExportThreads),
+                CancellationToken = this.context.Token
             };
 
             Parallel.ForEach(csEntries, po, (csentry) =>
             {
                 Stopwatch timer = new Stopwatch();
 
-                int number = Interlocked.Increment(ref this.exportContext.ExportedItemCount);
+                int number = Interlocked.Increment(ref this.context.ExportedItemCount);
                 string record = $"{number}:{csentry.ObjectModificationType}:{csentry.ObjectType}:{csentry.DN}";
                 CSEntryChangeResult result = null;
 
@@ -120,7 +118,7 @@ namespace Lithnet.Ecma2Framework
                 }
             });
 
-            this.Logger.LogInformation($"Page complete. Export count: {this.exportContext.ExportedItemCount}");
+            this.Logger.LogInformation($"Page complete. Export count: {this.context.ExportedItemCount}");
             return Task.FromResult(results);
         }
 
@@ -128,33 +126,33 @@ namespace Lithnet.Ecma2Framework
         {
             this.Logger.LogInformation($"Closing export connection: {exportRunStep.Reason}");
 
-            if (this.exportContext == null)
+            if (this.context == null)
             {
                 this.Logger.LogTrace("No export context detected");
                 return Task.CompletedTask;
             }
 
-            this.exportContext.Timer.Stop();
+            this.context.Timer.Stop();
 
             if (exportRunStep.Reason != CloseReason.Normal)
             {
-                if (this.exportContext.CancellationTokenSource != null)
+                if (this.context.CancellationTokenSource != null)
                 {
                     this.Logger.LogInformation("Cancellation request received");
-                    this.exportContext.CancellationTokenSource.Cancel();
-                    this.exportContext.CancellationTokenSource.Token.WaitHandle.WaitOne();
+                    this.context.CancellationTokenSource.Cancel();
+                    this.context.CancellationTokenSource.Token.WaitHandle.WaitOne();
                     this.Logger.LogInformation("Cancellation completed");
                 }
             }
 
             this.Logger.LogInformation("Export operation complete");
-            this.Logger.LogInformation($"Exported {this.exportContext.ExportedItemCount} objects");
-            this.Logger.LogInformation($"Export duration: {this.exportContext.Timer.Elapsed}");
+            this.Logger.LogInformation($"Exported {this.context.ExportedItemCount} objects");
+            this.Logger.LogInformation($"Export duration: {this.context.Timer.Elapsed}");
 
-            if (this.exportContext.ExportedItemCount > 0 && this.exportContext.Timer.Elapsed.TotalSeconds > 0)
+            if (this.context.ExportedItemCount > 0 && this.context.Timer.Elapsed.TotalSeconds > 0)
             {
-                this.Logger.LogInformation($"Speed: {(this.exportContext.ExportedItemCount / this.exportContext.Timer.Elapsed.TotalSeconds):N2} obj/sec");
-                this.Logger.LogInformation($"Average: {(this.exportContext.Timer.Elapsed.TotalSeconds / this.exportContext.ExportedItemCount):N2} sec/obj");
+                this.Logger.LogInformation($"Speed: {(this.context.ExportedItemCount / this.context.Timer.Elapsed.TotalSeconds):N2} obj/sec");
+                this.Logger.LogInformation($"Average: {(this.context.Timer.Elapsed.TotalSeconds / this.context.ExportedItemCount):N2} sec/obj");
             }
 
             return Task.CompletedTask;

@@ -9,7 +9,5 @@ namespace Lithnet.Ecma2Framework
         Task InitializeExportAsync(ExportContext context);
 
         Task InitializePasswordOperationAsync(PasswordContext context);
-
-        Task InitializeSchemaOperationAsync(SchemaContext context);
     }
 }
