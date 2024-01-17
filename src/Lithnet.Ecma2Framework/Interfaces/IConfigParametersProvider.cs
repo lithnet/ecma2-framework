@@ -1,5 +1,4 @@
 ﻿using System.Collections.Generic;
-using System.Collections.ObjectModel;
 using System.Threading.Tasks;
 using Microsoft.MetadirectoryServices;
 
@@ -7,8 +6,20 @@ namespace Lithnet.Ecma2Framework
 {
     public interface IConfigParametersProvider
     {
-        Task GetConfigParametersAsync(KeyedCollection<string, ConfigParameter> existingConfigParameters, IList<ConfigParameterDefinition> newDefinitions, ConfigParameterPage page, int pageNumber);
+        Task GetConnectivityConfigParametersAsync(IConfigParameters existingParameters, IList<ConfigParameterDefinition> newDefinitions);
 
-        Task<ParameterValidationResult> ValidateConfigParametersAsync(KeyedCollection<string, ConfigParameter> configParameters, ConfigParameterPage page, int pageNumber);
+        Task GetGlobalConfigParametersAsync(IConfigParameters existingParameters, IList<ConfigParameterDefinition> newDefinitions);
+
+        Task GetRunStepConfigParametersAsync(IConfigParameters existingParameters, IList<ConfigParameterDefinition> newDefinitions);
+
+        Task GetPartitionConfigParametersAsync(IConfigParameters existingParameters, IList<ConfigParameterDefinition> newDefinitions);
+
+        Task<ParameterValidationResult> ValidateConnectivityConfigParametersAsync(IConfigParameters configParameters);
+
+        Task<ParameterValidationResult> ValidateGlobalConfigParametersAsync(IConfigParameters configParameters);
+
+        Task<ParameterValidationResult> ValidateRunStepConfigParametersAsync(IConfigParameters configParameters);
+
+        Task<ParameterValidationResult> ValidatePartitionConfigParametersAsync(IConfigParameters configParameters);
     }
 }

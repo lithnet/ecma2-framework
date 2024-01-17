@@ -4,12 +4,14 @@ using System.Security;
 
 namespace Lithnet.Ecma2Framework
 {
-    internal static class GenericExtensions
+    internal static class InternalExtensions
     {
         public static string ConvertToUnsecureString(this SecureString securePassword)
         {
             if (securePassword == null)
+            {
                 throw new ArgumentNullException(nameof(securePassword));
+            }
 
             IntPtr unmanagedString = IntPtr.Zero;
             try

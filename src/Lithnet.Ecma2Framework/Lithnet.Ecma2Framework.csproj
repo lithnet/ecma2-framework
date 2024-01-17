@@ -16,7 +16,7 @@
 		<Company>Lithnet</Company>
 		<Copyright>Copyright 2024 Lithnet Pty Ltd</Copyright>
 		<ProductName>Lithnet ECMA2 framework</ProductName>
-		<Version>2.0.0-beta84</Version>
+		<Version>2.0.0-beta90</Version>
 		<Authors>Lithnet</Authors>
 		<AutoIncrementPackageRevision>true</AutoIncrementPackageRevision>
 		<IsPackable>true</IsPackable>
@@ -31,13 +31,11 @@
 		<EmbedUntrackedSources>true</EmbedUntrackedSources>
 		<Title>Lithnet ECMA2 Framework</Title>
 		<PackageProjectUrl>https://github.com/lithnet/ecma2-framework</PackageProjectUrl>
-
 	</PropertyGroup>
 
 	<PropertyGroup Condition="'$(TF_BUILD)' == 'true'">
 		<ContinuousIntegrationBuild>true</ContinuousIntegrationBuild>
 	</PropertyGroup>
-
 
 	<ItemGroup>
 		<PackageReference Include="Microsoft.Extensions.DependencyInjection" Version="8.0.0" />

@@ -2,7 +2,7 @@
 
 namespace Lithnet.Ecma2Framework
 {
-    public interface IOperationInitializer
+    public interface IContextInitializer
     {
         Task InitializeImportAsync(ImportContext context);
 

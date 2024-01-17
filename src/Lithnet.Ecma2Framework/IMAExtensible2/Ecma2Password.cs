@@ -37,16 +37,20 @@ namespace Lithnet.Ecma2Framework
         {
             this.InitializeDIContainer(configParameters);
 
-            this.passwordContext = new PasswordContext();
+            this.passwordContext = new PasswordContext() { Partition = partition };
 
-            var initializers = this.ServiceProvider.GetServices<IOperationInitializer>();
+            var initializers = this.ServiceProvider.GetServices<IContextInitializer>();
 
             if (initializers != null)
             {
                 foreach (var initializer in initializers)
                 {
                     this.Logger.LogInformation("Launching initializer");
-                    await initializer.InitializePasswordOperationAsync(this.passwordContext);
+                    try
+                    {
+                        await initializer.InitializePasswordOperationAsync(this.passwordContext);
+                    }
+                    catch (NotImplementedException) { }
                     this.Logger.LogInformation("Initializer complete");
                 }
             }
@@ -54,12 +58,10 @@ namespace Lithnet.Ecma2Framework
             await this.InitializeProvidersAsync(this.passwordContext);
         }
 
-
         public Task ClosePasswordConnectionAsync()
         {
             return Task.CompletedTask;
         }
-
 
         public async Task SetPasswordAsync(CSEntry csentry, SecureString newPassword, PasswordOptions options)
         {
@@ -97,10 +99,14 @@ namespace Lithnet.Ecma2Framework
         {
             foreach (IObjectPasswordProvider provider in this.Providers)
             {
-                if (await provider.CanPerformPasswordOperationAsync(csentry))
+                try
                 {
-                    return provider;
+                    if (await provider.CanPerformPasswordOperationAsync(csentry))
+                    {
+                        return provider;
+                    }
                 }
+                catch (NotImplementedException) { }
             }
 
             throw new InvalidOperationException($"An export provider for the type '{csentry.ObjectType}' could not be found");
@@ -110,7 +116,11 @@ namespace Lithnet.Ecma2Framework
         {
             foreach (var provider in this.Providers)
             {
-                await provider.InitializeAsync(context);
+                try
+                {
+                    await provider.InitializeAsync(context);
+                }
+                catch (NotImplementedException) { }
             }
         }
     }

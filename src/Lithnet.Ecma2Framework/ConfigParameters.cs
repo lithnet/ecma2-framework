@@ -4,13 +4,13 @@ using Microsoft.MetadirectoryServices;
 
 namespace Lithnet.Ecma2Framework
 {
-    public class Ecma2ConfigParameters : IConfigParameters
+    public class ConfigParameters : IConfigParameters
     {
-        public Ecma2ConfigParameters()
+        public ConfigParameters()
         {
         }
 
-        public Ecma2ConfigParameters(KeyedCollection<string, ConfigParameter> parameters)
+        public ConfigParameters(KeyedCollection<string, ConfigParameter> parameters)
         {
             this.Parameters = parameters;
         }

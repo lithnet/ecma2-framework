@@ -24,7 +24,11 @@ namespace Lithnet.Ecma2Framework
         public async Task InitializeAsync(ImportContext context)
         {
             this.ImportContext = context;
-            await this.OnInitializeAsync();
+            try
+            {
+                await this.OnInitializeAsync();
+            }
+            catch (NotImplementedException) { }
         }
 
         public async Task GetCSEntryChangesAsync(SchemaType type)
@@ -51,16 +55,29 @@ namespace Lithnet.Ecma2Framework
 
         private async Task ProduceObjectsAsync(IAsyncEnumerable<TObject> items, ITargetBlock<TObject> target)
         {
-            await this.OnStartProducerAsync();
+            try
+            {
+                await this.OnStartProducerAsync();
+            }
+            catch (NotImplementedException) { }
+
             await items.ForEachAsync(t => target.Post(t));
             target.Complete();
 
-            await this.OnStartProducerAsync();
+            try
+            {
+                await this.OnStartProducerAsync();
+            }
+            catch (NotImplementedException) { }
         }
 
         private async Task ConsumeObjectsAsync(SchemaType type, ISourceBlock<TObject> source)
         {
-            await this.OnStartConsumerAsync();
+            try
+            {
+                await this.OnStartConsumerAsync();
+            }
+            catch (NotImplementedException) { }
 
             while (await source.OutputAvailableAsync())
             {
@@ -68,7 +85,12 @@ namespace Lithnet.Ecma2Framework
 
                 try
                 {
-                    await this.PrepareObjectForImportAsync(item).ConfigureAwait(false);
+                    try
+                    {
+                        await this.PrepareObjectForImportAsync(item).ConfigureAwait(false);
+                    }
+                    catch (NotImplementedException) { }
+
                     CSEntryChange c = await this.CreateCSEntryChangeAsync(type, item).ConfigureAwait(false);
 
                     if (c != null)
@@ -90,7 +112,11 @@ namespace Lithnet.Ecma2Framework
                 this.ImportContext.Token.ThrowIfCancellationRequested();
             }
 
-            await this.OnCompleteConsumerAsync();
+            try
+            {
+                await this.OnCompleteConsumerAsync();
+            }
+            catch (NotImplementedException) { }
         }
 
         protected virtual async Task<CSEntryChange> CreateCSEntryChangeAsync(SchemaType schemaType, TObject item)
@@ -111,7 +137,11 @@ namespace Lithnet.Ecma2Framework
                 c.ObjectModificationType = modType;
                 c.DN = await this.GetDNAsync(item);
 
-                await this.OnPrepareCSEntryChangeAsync(c);
+                try
+                {
+                    await this.OnPrepareCSEntryChangeAsync(c);
+                }
+                catch (NotImplementedException) { }
 
                 foreach (var anchor in await this.GetAnchorAttributesAsync(item))
                 {
@@ -120,7 +150,12 @@ namespace Lithnet.Ecma2Framework
 
                 if (modType == ObjectModificationType.Delete)
                 {
-                    await this.OnFinalizeCsEntryChangeAsync(c);
+                    try
+                    {
+                        await this.OnFinalizeCsEntryChangeAsync(c);
+                    }
+                    catch (NotImplementedException) { }
+
                     return c;
                 }
 
@@ -134,7 +169,12 @@ namespace Lithnet.Ecma2Framework
                     }
                 }
 
-                await this.OnFinalizeCsEntryChangeAsync(c);
+                try
+                {
+                    await this.OnFinalizeCsEntryChangeAsync(c);
+                }
+                catch (NotImplementedException) { }
+
                 return c;
             }
             catch (Exception ex)
@@ -144,7 +184,7 @@ namespace Lithnet.Ecma2Framework
             }
         }
 
-        protected virtual Task OnFinalizeCsEntryChangeAsync(CSEntryChange centry)
+        protected virtual Task OnFinalizeCsEntryChangeAsync(CSEntryChange csentry)
         {
             return Task.CompletedTask;
         }

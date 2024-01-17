@@ -13,11 +13,12 @@ namespace Lithnet.Ecma2Framework
 {
     public class Ecma2Import : Ecma2Base
     {
-        private static JsonSerializerOptions jsonOptions = new JsonSerializerOptions()
+        private static readonly JsonSerializerOptions jsonOptions = new JsonSerializerOptions()
         {
             PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
             PropertyNameCaseInsensitive = true
         };
+
         private ImportContext importContext;
 
         public Ecma2Import(Ecma2Initializer initializer) : base(initializer)
@@ -53,14 +54,18 @@ namespace Lithnet.Ecma2Framework
                     }
                 }
 
-                var initializers = this.ServiceProvider.GetServices<IOperationInitializer>();
+                var initializers = this.ServiceProvider.GetServices<IContextInitializer>();
 
                 if (initializers != null)
                 {
                     foreach (var initializer in initializers)
                     {
                         this.Logger.LogInformation("Launching initializer");
-                        await initializer.InitializeImportAsync(this.importContext);
+                        try
+                        {
+                            await initializer.InitializeImportAsync(this.importContext);
+                        }
+                        catch (NotImplementedException) { }
                         this.Logger.LogInformation("Initializer complete");
                     }
                 }
@@ -228,7 +233,13 @@ namespace Lithnet.Ecma2Framework
         {
             IObjectImportProvider provider = await this.GetProviderForTypeAsync(type);
             this.Logger.LogInformation($"Starting import of type {type.Name}");
-            await provider.InitializeAsync(this.importContext);
+
+            try
+            {
+                await provider.InitializeAsync(this.importContext);
+            }
+            catch (NotImplementedException) { }
+
             await provider.GetCSEntryChangesAsync(type);
             this.Logger.LogInformation($"Import of type {type.Name} completed");
         }
@@ -237,10 +248,14 @@ namespace Lithnet.Ecma2Framework
         {
             foreach (IObjectImportProvider provider in this.ServiceProvider.GetServices<IObjectImportProvider>())
             {
-                if (await provider.CanImportAsync(type))
+                try
                 {
-                    return provider;
+                    if (await provider.CanImportAsync(type))
+                    {
+                        return provider;
+                    }
                 }
+                catch (NotImplementedException) { }
             }
 
             throw new InvalidOperationException($"An import provider for the type '{type.Name}' could not be found");

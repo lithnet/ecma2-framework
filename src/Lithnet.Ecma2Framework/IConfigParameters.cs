@@ -1,4 +1,6 @@
 ﻿using System.Collections.Generic;
+using System.Collections.ObjectModel;
+using Microsoft.MetadirectoryServices;
 
 namespace Lithnet.Ecma2Framework
 {
@@ -17,5 +19,7 @@ namespace Lithnet.Ecma2Framework
         public string GetString(string name, string defaultValue);
 
         bool HasValue(string name);
+
+        KeyedCollection<string, ConfigParameter> Parameters { get; }
     }
 }

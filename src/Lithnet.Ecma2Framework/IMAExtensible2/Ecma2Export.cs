@@ -43,14 +43,19 @@ namespace Lithnet.Ecma2Framework
             {
                 this.Logger.LogInformation("Starting export");
 
-                var initializers = this.ServiceProvider.GetServices<IOperationInitializer>();
+                var initializers = this.ServiceProvider.GetServices<IContextInitializer>();
 
                 if (initializers != null)
                 {
                     foreach (var initializer in initializers)
                     {
                         this.Logger.LogInformation("Launching initializer");
-                        await initializer.InitializeExportAsync(this.exportContext);
+                        try
+                        {
+                            await initializer.InitializeExportAsync(this.exportContext);
+                        }
+                        catch (NotImplementedException) { }
+
                         this.Logger.LogInformation("Initializer complete");
                     }
                 }
@@ -118,7 +123,6 @@ namespace Lithnet.Ecma2Framework
             this.Logger.LogInformation($"Page complete. Export count: {this.exportContext.ExportedItemCount}");
             return Task.FromResult(results);
         }
-
 
         public Task CloseExportConnectionAsync(CloseExportConnectionRunStep exportRunStep)
         {
