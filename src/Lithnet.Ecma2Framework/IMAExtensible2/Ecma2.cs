@@ -20,11 +20,9 @@ namespace Lithnet.Ecma2Framework
             {
                 this.InitializeDIContainer(configParameters);
 
-                SchemaContext context = new SchemaContext();
-
                 ISchemaProvider provider = this.ServiceProvider.GetRequiredService<ISchemaProvider>();
 
-                return await provider.GetMmsSchemaAsync(context);
+                return await provider.GetMmsSchemaAsync();
             }
             catch (Exception ex)
             {

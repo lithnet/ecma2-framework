@@ -10,6 +10,6 @@ namespace Lithnet.Ecma2Framework
 
         Task<ParameterValidationResult> ValidateConfigParametersAsync(IConfigParameters configParameters, int pageNumber);
 
-        Task<Schema> GetMmsSchemaAsync(SchemaContext context);
+        Task<Schema> GetMmsSchemaAsync();
     }
 }

@@ -16,10 +16,5 @@
         {
             return (T)context.CustomData;
         }
-
-        public static T GetCustomData<T>(this SchemaContext context) where T : class
-        {
-            return (T)context.CustomData;
-        }
     }
 }
