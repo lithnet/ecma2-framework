@@ -1,9 +1,12 @@
-﻿using Microsoft.Extensions.DependencyInjection;
+﻿using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.DependencyInjection;
 
 namespace Lithnet.Ecma2Framework
 {
     public interface IEcmaBootstrapper
     {
+        void Configure(IConfigurationBuilder builder);
+
         /// <summary>
         /// This method is called when the ECMA2 framework is initializing. Use this method to register your custom services with the DI container.
         /// </summary>

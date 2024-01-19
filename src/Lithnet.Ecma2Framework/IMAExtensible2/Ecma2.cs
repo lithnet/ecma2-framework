@@ -54,73 +54,61 @@ namespace Lithnet.Ecma2Framework
                 this.InitializeDIContainer(existingConfigParameters);
 
                 var newConfigParameters = new List<ConfigParameterDefinition>();
+                IConfigParametersProvider provider = this.ServiceProvider.GetService<IConfigParametersProvider>();
+
+                if (provider == null)
+                {
+                    return newConfigParameters;
+                }
 
                 switch (page)
                 {
                     case ConfigParameterPage.Capabilities:
-                        ICapabilitiesProvider capabilityProvider = this.ServiceProvider.GetRequiredService<ICapabilitiesProvider>();
                         try
                         {
-                            await capabilityProvider.GetConfigParametersAsync(this.ConfigParameters, newConfigParameters);
+                            await provider.GetCapabilitiesConfigParametersAsync(this.ConfigParameters, newConfigParameters);
                         }
                         catch (NotImplementedException) { }
                         break;
 
                     case ConfigParameterPage.Schema:
-                        ISchemaProvider schemaProvider = this.ServiceProvider.GetRequiredService<ISchemaProvider>();
                         try
                         {
-                            await schemaProvider.GetConfigParametersAsync(this.ConfigParameters, newConfigParameters, pageNumber);
+                            await provider.GetSchemaConfigParametersAsync(this.ConfigParameters, newConfigParameters, pageNumber);
                         }
                         catch (NotImplementedException) { }
                         break;
 
                     case ConfigParameterPage.Connectivity:
-                        IConfigParametersProvider provider = this.ServiceProvider.GetService<IConfigParametersProvider>();
-                        if (provider != null)
+                        try
                         {
-                            try
-                            {
-                                await provider.GetConnectivityConfigParametersAsync(this.ConfigParameters, newConfigParameters);
-                            }
-                            catch (NotImplementedException) { }
+                            await provider.GetConnectivityConfigParametersAsync(this.ConfigParameters, newConfigParameters);
                         }
+                        catch (NotImplementedException) { }
                         break;
 
                     case ConfigParameterPage.Global:
-                        provider = this.ServiceProvider.GetService<IConfigParametersProvider>();
-                        if (provider != null)
+                        try
                         {
-                            try
-                            {
-                                await provider.GetGlobalConfigParametersAsync(this.ConfigParameters, newConfigParameters);
-                            }
-                            catch (NotImplementedException) { }
+                            await provider.GetGlobalConfigParametersAsync(this.ConfigParameters, newConfigParameters);
                         }
+                        catch (NotImplementedException) { }
                         break;
 
                     case ConfigParameterPage.RunStep:
-                        provider = this.ServiceProvider.GetService<IConfigParametersProvider>();
-                        if (provider != null)
+                        try
                         {
-                            try
-                            {
-                                await provider.GetRunStepConfigParametersAsync(this.ConfigParameters, newConfigParameters);
-                            }
-                            catch (NotImplementedException) { }
+                            await provider.GetRunStepConfigParametersAsync(this.ConfigParameters, newConfigParameters);
                         }
+                        catch (NotImplementedException) { }
                         break;
 
                     case ConfigParameterPage.Partition:
-                        provider = this.ServiceProvider.GetService<IConfigParametersProvider>();
-                        if (provider != null)
+                        try
                         {
-                            try
-                            {
-                                await provider.GetPartitionConfigParametersAsync(this.ConfigParameters, newConfigParameters);
-                            }
-                            catch (NotImplementedException) { }
+                            await provider.GetPartitionConfigParametersAsync(this.ConfigParameters, newConfigParameters);
                         }
+                        catch (NotImplementedException) { }
                         break;
                 }
 
@@ -139,75 +127,64 @@ namespace Lithnet.Ecma2Framework
             {
                 this.InitializeDIContainer(configParameters);
 
-                IConfigParametersProvider provider;
+                IConfigParametersProvider provider = this.ServiceProvider.GetService<IConfigParametersProvider>();
+
                 ParameterValidationResult result = null;
+
+                if (provider == null)
+                {
+                    return new ParameterValidationResult();
+                }
 
                 switch (page)
                 {
                     case ConfigParameterPage.Capabilities:
-                        ICapabilitiesProvider capabilityProvider = this.ServiceProvider.GetRequiredService<ICapabilitiesProvider>();
                         try
                         {
-                            result = await capabilityProvider.ValidateConfigParametersAsync(this.ConfigParameters);
+                            result = await provider.ValidateCapabilitiesConfigParametersAsync(this.ConfigParameters);
                         }
                         catch (NotImplementedException) { }
                         break;
 
                     case ConfigParameterPage.Schema:
-                        ISchemaProvider schemaProvider = this.ServiceProvider.GetRequiredService<ISchemaProvider>();
                         try
                         {
-                            result = await schemaProvider.ValidateConfigParametersAsync(this.ConfigParameters, pageNumber);
+                            result = await provider.ValidateSchemaConfigParametersAsync(this.ConfigParameters, pageNumber);
                         }
                         catch (NotImplementedException) { }
                         break;
 
                     case ConfigParameterPage.Connectivity:
-                        provider = this.ServiceProvider.GetService<IConfigParametersProvider>();
-                        if (provider != null)
+
+                        try
                         {
-                            try
-                            {
-                                result = await provider.ValidateConnectivityConfigParametersAsync(this.ConfigParameters);
-                            }
-                            catch (NotImplementedException) { }
+                            result = await provider.ValidateConnectivityConfigParametersAsync(this.ConfigParameters);
                         }
+                        catch (NotImplementedException) { }
                         break;
 
                     case ConfigParameterPage.Global:
-                        provider = this.ServiceProvider.GetService<IConfigParametersProvider>();
-                        if (provider != null)
+                        try
                         {
-                            try
-                            {
-                                result = await provider.ValidateGlobalConfigParametersAsync(this.ConfigParameters);
-                            }
-                            catch (NotImplementedException) { }
+                            result = await provider.ValidateGlobalConfigParametersAsync(this.ConfigParameters);
                         }
+                        catch (NotImplementedException) { }
                         break;
 
                     case ConfigParameterPage.RunStep:
-                        provider = this.ServiceProvider.GetService<IConfigParametersProvider>();
-                        if (provider != null)
+                        try
                         {
-                            try
-                            {
-                                result = await provider.ValidateRunStepConfigParametersAsync(this.ConfigParameters);
-                            }
-                            catch (NotImplementedException) { }
+                            result = await provider.ValidateRunStepConfigParametersAsync(this.ConfigParameters);
                         }
+                        catch (NotImplementedException) { }
                         break;
 
                     case ConfigParameterPage.Partition:
-                        provider = this.ServiceProvider.GetService<IConfigParametersProvider>();
-                        if (provider != null)
+                        try
                         {
-                            try
-                            {
-                                result = await provider.ValidatePartitionConfigParametersAsync(this.ConfigParameters);
-                            }
-                            catch (NotImplementedException) { }
+                            result = await provider.ValidatePartitionConfigParametersAsync(this.ConfigParameters);
                         }
+                        catch (NotImplementedException) { }
                         break;
                 }
 

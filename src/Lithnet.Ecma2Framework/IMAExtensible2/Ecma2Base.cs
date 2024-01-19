@@ -23,9 +23,9 @@ namespace Lithnet.Ecma2Framework
 
         protected void InitializeDIContainer(KeyedCollection<string, ConfigParameter> configParameters)
         {
-            this.ConfigParameters = new ConfigParameters(configParameters);
-            this.ServiceProvider = this.initializer.Build(this.ConfigParameters);
+            this.ServiceProvider = this.initializer.Build(configParameters);
             this.Logger = this.ServiceProvider.GetRequiredService<ILoggerFactory>().CreateLogger(this.GetType().FullName);
+            this.ConfigParameters = this.ServiceProvider.GetRequiredService<IConfigParameters>();
         }
     }
 }

@@ -5,6 +5,8 @@
 		<EnforceExtendedAnalyzerRules>true</EnforceExtendedAnalyzerRules>
 		<LangVersion>9</LangVersion>
 		<IsRoslynComponent>true</IsRoslynComponent>
+		<DebugType>full</DebugType>
+		<DebugSymbols>true</DebugSymbols>
 	</PropertyGroup>
 
 	<PropertyGroup>
@@ -22,6 +24,10 @@
 
 	<ItemGroup>
 		<EmbeddedResource Include="Templates\*" />
+	</ItemGroup>
+
+	<ItemGroup>
+	  <None Remove="Templates\Ecma2GeneratedConfigParametersProvider.txt" />
 	</ItemGroup>
 
 	<ItemGroup>

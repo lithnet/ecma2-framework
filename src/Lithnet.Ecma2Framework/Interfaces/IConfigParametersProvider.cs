@@ -14,6 +14,14 @@ namespace Lithnet.Ecma2Framework
 
         Task GetPartitionConfigParametersAsync(IConfigParameters existingParameters, IList<ConfigParameterDefinition> newDefinitions);
 
+        Task GetCapabilitiesConfigParametersAsync(IConfigParameters existingParameters, IList<ConfigParameterDefinition> newDefinitions);
+
+        Task GetSchemaConfigParametersAsync(IConfigParameters existingParameters, IList<ConfigParameterDefinition> newDefinitions, int pageNumber);
+
+        Task<ParameterValidationResult> ValidateSchemaConfigParametersAsync(IConfigParameters configParameters, int pageNumber);
+
+        Task<ParameterValidationResult> ValidateCapabilitiesConfigParametersAsync(IConfigParameters configParameters);
+
         Task<ParameterValidationResult> ValidateConnectivityConfigParametersAsync(IConfigParameters configParameters);
 
         Task<ParameterValidationResult> ValidateGlobalConfigParametersAsync(IConfigParameters configParameters);

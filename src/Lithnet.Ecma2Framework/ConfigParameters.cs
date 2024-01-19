@@ -1,4 +1,5 @@
-﻿using System.Collections.Generic;
+﻿using System;
+using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using Microsoft.MetadirectoryServices;
 
@@ -6,6 +7,10 @@ namespace Lithnet.Ecma2Framework
 {
     public class ConfigParameters : IConfigParameters
     {
+        private KeyedCollection<string, ConfigParameter> parameters;
+
+        internal event EventHandler ConfigParametersChanged;
+
         public ConfigParameters()
         {
         }
@@ -15,7 +20,15 @@ namespace Lithnet.Ecma2Framework
             this.Parameters = parameters;
         }
 
-        public KeyedCollection<string, ConfigParameter> Parameters { get; }
+        public KeyedCollection<string, ConfigParameter> Parameters
+        {
+            get { return this.parameters; }
+            internal set
+            {
+                this.parameters = value;
+                this.ConfigParametersChanged?.Invoke(this, EventArgs.Empty);
+            }
+        }
 
         public bool HasValue(string name)
         {

@@ -1,0 +1,100 @@
+﻿using System;
+using System.Collections.Generic;
+using System.Threading.Tasks;
+using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Options;
+using Microsoft.MetadirectoryServices;
+
+namespace Lithnet.Ecma2Framework.Generated
+{
+    internal class Ecma2GeneratedConfigParametersProvider : IConfigParametersProvider
+    {
+        private readonly IServiceProvider serviceProvider;
+
+        public Ecma2GeneratedConfigParametersProvider(IServiceProvider serviceProvider)
+        {
+            this.serviceProvider = serviceProvider;
+        }
+
+        public virtual Task GetCapabilitiesConfigParametersAsync(IConfigParameters existingParameters, IList<ConfigParameterDefinition> newDefinitions)
+        {
+            //%CAPABILITIESPARAMS%
+            return Task.CompletedTask;
+        }
+        public virtual Task GetConnectivityConfigParametersAsync(IConfigParameters existingParameters, IList<ConfigParameterDefinition> newDefinitions)
+        {
+            //%CONNECTIVITYPARAMS%
+            return Task.CompletedTask;
+        }
+
+        public virtual Task GetGlobalConfigParametersAsync(IConfigParameters existingParameters, IList<ConfigParameterDefinition> newDefinitions)
+        {
+            //%GLOBALPARAMS%
+            return Task.CompletedTask;
+        }
+
+        public virtual Task GetPartitionConfigParametersAsync(IConfigParameters existingParameters, IList<ConfigParameterDefinition> newDefinitions)
+        {
+            //%PARTITIONPARAMS%
+            return Task.CompletedTask;
+        }
+
+        public virtual Task GetRunStepConfigParametersAsync(IConfigParameters existingParameters, IList<ConfigParameterDefinition> newDefinitions)
+        {
+            //%RUNSTEPPARAMS%
+            return Task.CompletedTask;
+        }
+
+        public virtual Task GetSchemaConfigParametersAsync(IConfigParameters existingParameters, IList<ConfigParameterDefinition> newDefinitions, int pageNumber)
+        {
+            if (pageNumber == 1)
+            {
+                //%SCHEMAPARAMS%
+            }
+
+            return Task.CompletedTask;
+        }
+
+        public Task<ParameterValidationResult> ValidateCapabilitiesConfigParametersAsync(IConfigParameters configParameters)
+        {
+            ParameterValidationResult result = new ParameterValidationResult();
+            //%CAPABILITIESVALIDATION%
+            return Task.FromResult(result);
+        }
+
+        public Task<ParameterValidationResult> ValidateConnectivityConfigParametersAsync(IConfigParameters configParameters)
+        {
+            ParameterValidationResult result = new ParameterValidationResult();
+            //%CONNECTIVITYVALIDATION%
+            return Task.FromResult(result);
+        }
+
+        public Task<ParameterValidationResult> ValidateGlobalConfigParametersAsync(IConfigParameters configParameters)
+        {
+            ParameterValidationResult result = new ParameterValidationResult();
+            //%GLOBALVALIDATION%
+            return Task.FromResult(result);
+        }
+
+        public Task<ParameterValidationResult> ValidatePartitionConfigParametersAsync(IConfigParameters configParameters)
+        {
+            ParameterValidationResult result = new ParameterValidationResult();
+            //%PARTITIONVALIDATION%
+            return Task.FromResult(result);
+        }
+
+        public Task<ParameterValidationResult> ValidateRunStepConfigParametersAsync(IConfigParameters configParameters)
+        {
+            ParameterValidationResult result = new ParameterValidationResult();
+            //%RUNSTEPVALIDATION%
+            return Task.FromResult(result);
+        }
+
+        public Task<ParameterValidationResult> ValidateSchemaConfigParametersAsync(IConfigParameters configParameters, int pageNumber)
+        {
+            ParameterValidationResult result = new ParameterValidationResult();
+            //%SCHEMAVALIDATION%
+            return Task.FromResult(result);
+        }
+    }
+}
