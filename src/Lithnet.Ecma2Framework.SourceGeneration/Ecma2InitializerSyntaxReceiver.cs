@@ -6,27 +6,6 @@ using Microsoft.CodeAnalysis.CSharp.Syntax;
 
 namespace Lithnet.Ecma2Framework
 {
-    internal class DiscoveredConfigClass
-    {
-        public string ClassName { get; set; }
-
-        public string SectionName { get; set; }
-
-        public ConfigParameterPage Page { get; set; }
-
-        public List<string> ServicesToRegister { get; set; } = new List<string>();
-
-        public List<string> ValidatorsToAdd { get; set; } = new List<string>();
-
-        public List<string> ParametersToAdd { get; set; } = new List<string>();
-
-        public INamedTypeSymbol ClassSymbol { get; set; }
-
-        public AttributeData ConfigAttribute { get; set; }
-
-        public HashSet<string> PropertiesDecorated { get; set; } = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
-    }
-
     internal class Ecma2InitializerSyntaxReceiver : ISyntaxContextReceiver
     {
         private const string AttributeAnnotationsDefaultValue = "System.ComponentModel.DefaultValueAttribute";
@@ -54,9 +33,18 @@ namespace Lithnet.Ecma2Framework
         private const string AttributeConfigParamLabel = "Lithnet.Ecma2Framework.LabelParameterAttribute";
         private const string AttributeConfigParamDivider = "Lithnet.Ecma2Framework.DividerParameterAttribute";
 
+        private const string ConfigParamDataTypeString = "string";
+        private const string ConfigParamDataTypeStringEncrypted = "string-encrypted";
+        private const string ConfigParamDataTypeBoolean = "boolean";
+        private const string ConfigParamDataTypeStringDropdown = "string-dropdown";
+        private const string ConfigParamDataTypeStringMultiline = "string-multiline";
+        private const string ConfigParamDataTypeStringFile = "string-file";
+
         private static readonly SymbolDisplayFormat fullTypeNameFormat = new SymbolDisplayFormat(typeQualificationStyle: SymbolDisplayTypeQualificationStyle.NameAndContainingTypesAndNamespaces);
 
-        public Dictionary<string, string> Mapping { get; } = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+        public Dictionary<string, string> MmsNameToKeyMapping { get; } = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+
+        public Dictionary<string, string> MmsNameToTypeMapping { get; } = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
 
         public List<string> ServicesToRegister { get; } = new List<string>();
 
@@ -230,13 +218,24 @@ namespace Lithnet.Ecma2Framework
 
             if (!string.IsNullOrWhiteSpace(mmsName))
             {
-                if (this.Mapping.ContainsKey(mmsName))
+                if (this.MmsNameToKeyMapping.ContainsKey(mmsName))
                 {
                     this.Diagnostics.Add(Diagnostic.Create(new DiagnosticDescriptor("ECMA2007", "Configuration parameter names must be unique", $"The configuration parameter name '{mmsName}' is already in use on another property", "Ecma2Framework", DiagnosticSeverity.Error, true), property.Locations[0]));
                     return;
                 }
 
-                this.Mapping.Add(mmsName, $"{configClass.SectionName}:{property.Name}");
+                this.MmsNameToKeyMapping.Add(mmsName, $"{configClass.SectionName}:{property.Name}");
+
+                this.MmsNameToTypeMapping.Add(mmsName, propertyAttributeName switch
+                {
+                    AttributeConfigParamString => ConfigParamDataTypeString,
+                    AttributeConfigParamEncryptedString => ConfigParamDataTypeStringEncrypted,
+                    AttributeConfigParamCheckbox => ConfigParamDataTypeBoolean,
+                    AttributeConfigParamDropdown => ConfigParamDataTypeStringDropdown,
+                    AttributeConfigParamMultilineTextBox => ConfigParamDataTypeStringMultiline,
+                    AttributeConfigParamFile => ConfigParamDataTypeStringFile,
+                    _ => null,
+                });
             }
 
             var configDefinitionEntry = propertyAttributeName switch

@@ -9,9 +9,14 @@ namespace Lithnet.Ecma2Framework.Generated
 {
     internal class Ecma2ConfigRegistrationProvider : IConfigRegistrationProvider
     {
-        private readonly static Dictionary<string, string> mappings = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
+        private readonly static Dictionary<string, string> nameMappings = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
         {
 %MAPPEDPROPERTIES%
+        };
+
+        private readonly static Dictionary<string, string> typeMappings = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
+        {
+%TYPEMAPPINGS%
         };
 
         public void RegisterOptions(IServiceCollection services, IConfiguration configuration)
@@ -19,11 +24,21 @@ namespace Lithnet.Ecma2Framework.Generated
 %SERVICEREGISTRATIONS%
         }
 
+        public string GetTypeNameFromParameterName(string name)
+		{
+			if (typeMappings.ContainsKey(name))
+			{
+				return typeMappings[name];
+			}
+
+			return "string";
+		}
+
         public string GetKeyFromParameterName(string name)
         {
-            if (mappings.ContainsKey(name))
+            if (nameMappings.ContainsKey(name))
             {
-                return mappings[name];
+                return nameMappings[name];
             }
 
             char[] arr = name.ToCharArray();

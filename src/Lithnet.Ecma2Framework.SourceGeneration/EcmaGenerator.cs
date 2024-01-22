@@ -87,12 +87,21 @@ namespace Lithnet.Ecma2Framework
         private void AddConfigParameterMapping(GeneratorExecutionContext context, Ecma2InitializerSyntaxReceiver receiver)
         {
             StringBuilder builder = new StringBuilder();
-            foreach (var mapping in receiver.Mapping)
+            foreach (var mapping in receiver.MmsNameToKeyMapping)
             {
                 builder.AppendLine($"{{ \"{mapping.Key}\", \"{mapping.Value}\"}},");
             }
 
             var configMappingText = this.GetResource("Lithnet.Ecma2Framework.SourceGeneration.Templates.Ecma2ConfigParameterMapping.txt").Replace("%MAPPEDPROPERTIES%", builder.ToString());
+
+            builder.Clear();
+
+            foreach (var mapping in receiver.MmsNameToTypeMapping)
+            {
+                builder.AppendLine($"{{ \"{mapping.Key}\", \"{mapping.Value}\"}},");
+            }
+
+            configMappingText = configMappingText.Replace("%TYPEMAPPINGS%", builder.ToString());
 
             builder.Clear();
 

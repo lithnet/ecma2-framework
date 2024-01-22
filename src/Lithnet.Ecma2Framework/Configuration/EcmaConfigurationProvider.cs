@@ -26,7 +26,16 @@ namespace Lithnet.Ecma2Framework
                     continue;
                 }
 
-                this.Set(key, parameter.IsEncrypted ? parameter.SecureValue.ConvertToUnsecureString() : parameter.Value);
+                string value = parameter.IsEncrypted ? parameter.SecureValue.ConvertToUnsecureString() : parameter.Value;
+
+                var type = this.mappingProvider.GetTypeNameFromParameterName(parameter.Name);
+
+                if (type == "boolean")
+                {
+                    value = value == "1" ? "true" : "false";
+                }
+
+                this.Set(key, value);
             }
 
             this.OnReload();

@@ -8,5 +8,7 @@ namespace Lithnet.Ecma2Framework.Internal
         void RegisterOptions(IServiceCollection services, IConfiguration configuration);
 
         string GetKeyFromParameterName(string name);
+
+        string GetTypeNameFromParameterName(string name);
     }
 }
