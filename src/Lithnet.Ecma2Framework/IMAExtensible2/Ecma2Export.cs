@@ -5,103 +5,97 @@ using System.Diagnostics;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
+using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Logging;
 using Microsoft.MetadirectoryServices;
-using NLog;
 
 namespace Lithnet.Ecma2Framework
 {
-    public class Ecma2Export :
-        IMAExtensible2CallExport
+    public class Ecma2Export : Ecma2Base
     {
-        private static readonly Logger logger = LogManager.GetCurrentClassLogger();
+        private List<IObjectExportProvider> providerCache;
+        private ExportContext context;
 
-        private static List<IObjectExportProvider> providerCache;
+        public Ecma2Export(Ecma2Initializer initializer) : base(initializer)
+        {
+        }
 
-        private static List<IObjectExportProviderAsync> asyncProviderCache;
-
-        private static List<IObjectExportProvider> Providers
+        private List<IObjectExportProvider> Providers
         {
             get
             {
-                if (Ecma2Export.providerCache == null)
+                if (this.providerCache == null)
                 {
-                    Ecma2Export.providerCache = InterfaceManager.GetInstancesOfType<IObjectExportProvider>().ToList();
+                    this.providerCache = this.ServiceProvider.GetServices<IObjectExportProvider>().ToList();
                 }
 
-                return Ecma2Export.providerCache;
+                return this.providerCache;
             }
         }
 
-        private static List<IObjectExportProviderAsync> AsyncProviders
+        public async Task OpenExportConnectionAsync(KeyedCollection<string, ConfigParameter> configParameters, Schema types, OpenExportConnectionRunStep exportRunStep)
         {
-            get
-            {
-                if (Ecma2Export.asyncProviderCache == null)
-                {
-                    Ecma2Export.asyncProviderCache = InterfaceManager.GetInstancesOfType<IObjectExportProviderAsync>().ToList();
-                }
+            this.InitializeDIContainer(configParameters);
 
-                return Ecma2Export.asyncProviderCache;
-            }
-        }
-
-        private ExportContext exportContext;
-
-        public int ExportDefaultPageSize => 100;
-
-        public int ExportMaxPageSize => 9999;
-
-        public void OpenExportConnection(KeyedCollection<string, ConfigParameter> configParameters, Schema types, OpenExportConnectionRunStep exportRunStep)
-        {
-            Logging.SetupLogger(configParameters);
-
-            this.exportContext = new ExportContext()
-            {
-                ConfigParameters = configParameters
-            };
+            this.context = new ExportContext();
 
             try
             {
-                logger.Info("Starting export");
-                this.exportContext.ConnectionContext = InterfaceManager.GetProviderOrDefault<IConnectionContextProvider>()?.GetConnectionContext(configParameters, ConnectionContextOperationType.Export);
-                this.InitializeProviders(this.exportContext);
-                this.exportContext.Timer.Start();
+                this.Logger.LogInformation("Starting export");
+
+                var initializer = this.ServiceProvider.GetService<IContextInitializer>();
+
+                if (initializer != null)
+                {
+                    this.Logger.LogInformation("Launching initializer");
+                    
+                    try
+                    {
+                        await initializer.InitializeExportAsync(this.context);
+                    }
+                    catch (NotImplementedException) { }
+
+                    this.Logger.LogInformation("Initializer complete");
+                }
+
+                await this.InitializeProvidersAsync(this.context);
+                this.context.Timer.Start();
             }
             catch (Exception ex)
             {
-                logger.Error(ex);
+                this.Logger?.LogError(ex, "Failed to open export connection");
                 throw;
             }
         }
 
-        public PutExportEntriesResults PutExportEntries(IList<CSEntryChange> csentries)
+        public Task<PutExportEntriesResults> PutExportEntriesAsync(IList<CSEntryChange> csEntries)
         {
             PutExportEntriesResults results = new PutExportEntriesResults();
 
             ParallelOptions po = new ParallelOptions
             {
-                MaxDegreeOfParallelism = GlobalSettings.ExportThreadCount,
-                CancellationToken = this.exportContext.Token
+                MaxDegreeOfParallelism = Math.Max(1, this.context.ExportThreads),
+                CancellationToken = this.context.Token
             };
 
-            Parallel.ForEach(csentries, po, (csentry) =>
+            Parallel.ForEach(csEntries, po, (csentry) =>
             {
                 Stopwatch timer = new Stopwatch();
 
-                int number = Interlocked.Increment(ref this.exportContext.ExportedItemCount);
+                int number = Interlocked.Increment(ref this.context.ExportedItemCount);
                 string record = $"{number}:{csentry.ObjectModificationType}:{csentry.ObjectType}:{csentry.DN}";
                 CSEntryChangeResult result = null;
 
-                logger.Info($"Exporting record {record}");
+                this.Logger.LogInformation($"Exporting record {record}");
 
                 try
                 {
                     timer.Start();
-                    result = this.PutCSEntryChange(csentry);
+                    result = AsyncHelper.RunSync(this.PutCSEntryChangeAsync(csentry));
                 }
                 catch (Exception ex)
                 {
-                    logger.Error(ex, $"An error occurred exporting record {record}");
+                    this.Logger.LogError(ex, $"An error occurred exporting record {record}");
                     result = CSEntryChangeResult.Create(csentry.Identifier, null, MAExportError.ExportErrorCustomContinueRun, ex.Message, ex.ToString());
                 }
                 finally
@@ -110,7 +104,7 @@ namespace Lithnet.Ecma2Framework
 
                     if (result == null)
                     {
-                        logger.Error($"CSEntryResult for object {record} was null");
+                        this.Logger.LogError($"CSEntryResult for object {record} was null");
                     }
                     else
                     {
@@ -120,34 +114,61 @@ namespace Lithnet.Ecma2Framework
                         }
                     }
 
-                    logger.Trace($"Export of record {record} returned '{result?.ErrorCode.ToString().ToLower() ?? "<null>"}' and took {timer.Elapsed}");
+                    this.Logger.LogTrace($"Export of record {record} returned '{result?.ErrorCode.ToString().ToLower() ?? "<null>"}' and took {timer.Elapsed}");
                 }
             });
 
-            logger.Info($"Page complete. Export count: {this.exportContext.ExportedItemCount}");
-            return results;
+            this.Logger.LogInformation($"Page complete. Export count: {this.context.ExportedItemCount}");
+            return Task.FromResult(results);
         }
 
-        private CSEntryChangeResult PutCSEntryChange(CSEntryChange csentry)
+        public Task CloseExportConnectionAsync(CloseExportConnectionRunStep exportRunStep)
         {
-            IObjectExportProviderAsync providerAsync = this.GetAsyncProviderForType(csentry);
+            this.Logger.LogInformation($"Closing export connection: {exportRunStep.Reason}");
 
-            if (providerAsync != null)
+            if (this.context == null)
             {
-                return AsyncHelper.RunSync(providerAsync.PutCSEntryChangeAsync(csentry), this.exportContext.Token);
+                this.Logger.LogTrace("No export context detected");
+                return Task.CompletedTask;
             }
-            else
+
+            this.context.Timer.Stop();
+
+            if (exportRunStep.Reason != CloseReason.Normal)
             {
-                IObjectExportProvider provider = this.GetProviderForType(csentry);
-                return provider.PutCSEntryChange(csentry);
+                if (this.context.CancellationTokenSource != null)
+                {
+                    this.Logger.LogInformation("Cancellation request received");
+                    this.context.CancellationTokenSource.Cancel();
+                    this.context.CancellationTokenSource.Token.WaitHandle.WaitOne();
+                    this.Logger.LogInformation("Cancellation completed");
+                }
             }
+
+            this.Logger.LogInformation("Export operation complete");
+            this.Logger.LogInformation($"Exported {this.context.ExportedItemCount} objects");
+            this.Logger.LogInformation($"Export duration: {this.context.Timer.Elapsed}");
+
+            if (this.context.ExportedItemCount > 0 && this.context.Timer.Elapsed.TotalSeconds > 0)
+            {
+                this.Logger.LogInformation($"Speed: {(this.context.ExportedItemCount / this.context.Timer.Elapsed.TotalSeconds):N2} obj/sec");
+                this.Logger.LogInformation($"Average: {(this.context.Timer.Elapsed.TotalSeconds / this.context.ExportedItemCount):N2} sec/obj");
+            }
+
+            return Task.CompletedTask;
         }
 
-        private IObjectExportProvider GetProviderForType(CSEntryChange csentry)
+        private async Task<CSEntryChangeResult> PutCSEntryChangeAsync(CSEntryChange csentry)
         {
-            foreach (IObjectExportProvider provider in Ecma2Export.Providers)
+            IObjectExportProvider provider = await this.GetProviderForTypeAsync(csentry);
+            return await provider.PutCSEntryChangeAsync(csentry);
+        }
+
+        private async Task<IObjectExportProvider> GetProviderForTypeAsync(CSEntryChange csentry)
+        {
+            foreach (IObjectExportProvider provider in this.Providers)
             {
-                if (provider.CanExport(csentry))
+                if (await provider.CanExportAsync(csentry))
                 {
                     return provider;
                 }
@@ -156,63 +177,11 @@ namespace Lithnet.Ecma2Framework
             throw new InvalidOperationException($"An export provider for the type '{csentry.ObjectType}' could not be found");
         }
 
-        private IObjectExportProviderAsync GetAsyncProviderForType(CSEntryChange csentry)
+        private async Task InitializeProvidersAsync(ExportContext context)
         {
-            foreach (IObjectExportProviderAsync provider in Ecma2Export.AsyncProviders)
+            foreach (var provider in this.Providers)
             {
-                if (provider.CanExport(csentry))
-                {
-                    return provider;
-                }
-            }
-
-            return null;
-        }
-
-        private void InitializeProviders(ExportContext context)
-        {
-            foreach (var provider in AsyncProviders)
-            {
-                provider.Initialize(context);
-            }
-
-            foreach (var provider in Providers)
-            {
-                provider.Initialize(context);
-            }
-        }
-
-        public void CloseExportConnection(CloseExportConnectionRunStep exportRunStep)
-        {
-            logger.Info($"Closing export connection: {exportRunStep.Reason}");
-
-            if (this.exportContext == null)
-            {
-                logger.Trace("No export context detected");
-                return;
-            }
-
-            this.exportContext.Timer.Stop();
-
-            if (exportRunStep.Reason != CloseReason.Normal)
-            {
-                if (this.exportContext.CancellationTokenSource != null)
-                {
-                    logger.Info("Cancellation request received");
-                    this.exportContext.CancellationTokenSource.Cancel();
-                    this.exportContext.CancellationTokenSource.Token.WaitHandle.WaitOne();
-                    logger.Info("Cancellation completed");
-                }
-            }
-
-            logger.Info("Export operation complete");
-            logger.Info($"Exported {this.exportContext.ExportedItemCount} objects");
-            logger.Info($"Export duration: {this.exportContext.Timer.Elapsed}");
-
-            if (this.exportContext.ExportedItemCount > 0 && this.exportContext.Timer.Elapsed.TotalSeconds > 0)
-            {
-                logger.Info($"Speed: {(this.exportContext.ExportedItemCount / this.exportContext.Timer.Elapsed.TotalSeconds):N2} obj/sec");
-                logger.Info($"Average: {(this.exportContext.Timer.Elapsed.TotalSeconds / this.exportContext.ExportedItemCount):N2} sec/obj");
+                await provider.InitializeAsync(context);
             }
         }
     }

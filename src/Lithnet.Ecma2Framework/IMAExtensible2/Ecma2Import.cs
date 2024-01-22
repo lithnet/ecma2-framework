@@ -3,241 +3,112 @@ using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.Linq;
+using System.Text.Json;
 using System.Threading.Tasks;
+using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Logging;
 using Microsoft.MetadirectoryServices;
-using Newtonsoft.Json;
-using NLog;
 
 namespace Lithnet.Ecma2Framework
 {
-    public class Ecma2Import : IMAExtensible2CallImport
+    public class Ecma2Import : Ecma2Base
     {
-        private static readonly Logger logger = LogManager.GetCurrentClassLogger();
+        private static readonly JsonSerializerOptions jsonOptions = new JsonSerializerOptions()
+        {
+            PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
+            PropertyNameCaseInsensitive = true,
+            WriteIndented = false
+        };
 
-        private ImportContext importContext;
+        private ImportContext context;
+
+        public Ecma2Import(Ecma2Initializer initializer) : base(initializer)
+        {
+        }
 
         private int Batch { get; set; }
 
-        public int ImportDefaultPageSize => 100;
-
-        public int ImportMaxPageSize => 9999;
-
-        public OpenImportConnectionResults OpenImportConnection(KeyedCollection<string, ConfigParameter> configParameters, Schema types, OpenImportConnectionRunStep importRunStep)
+        public async Task<OpenImportConnectionResults> OpenImportConnectionAsync(KeyedCollection<string, ConfigParameter> configParameters, Schema types, OpenImportConnectionRunStep importRunStep)
         {
-            Logging.SetupLogger(configParameters);
+            this.InitializeDIContainer(configParameters);
 
-            this.importContext = new ImportContext()
+            this.context = new ImportContext()
             {
                 RunStep = importRunStep,
                 ImportItems = new BlockingCollection<CSEntryChange>(),
-                ConfigParameters = configParameters,
                 Types = types
             };
 
             try
             {
-                logger.Info("Starting {0} import", this.importContext.InDelta ? "delta" : "full");
-
-                this.importContext.ConnectionContext = InterfaceManager.GetProviderOrDefault<IConnectionContextProvider>()?.GetConnectionContext(configParameters, ConnectionContextOperationType.Import);
+                this.Logger.LogInformation("Starting {0} import", this.context.InDelta ? "delta" : "full");
 
                 if (!string.IsNullOrEmpty(importRunStep.CustomData))
                 {
                     try
                     {
-                        this.importContext.IncomingWatermark = JsonConvert.DeserializeObject<WatermarkKeyedCollection>(importRunStep.CustomData);
+                        this.context.IncomingWatermark = JsonSerializer.Deserialize<WatermarkKeyedCollection>(importRunStep.CustomData, jsonOptions);
                     }
                     catch (Exception ex)
                     {
-                        logger.Error(ex, "Could not deserialize watermark");
+                        this.Logger.LogError(ex, "Could not deserialize watermark");
                     }
                 }
 
-                this.importContext.Timer.Start();
+                var initializer = this.ServiceProvider.GetService<IContextInitializer>();
 
-                this.StartCreatingCSEntryChanges(this.importContext);
+                if (initializer != null)
+                {
+                    this.Logger.LogInformation("Launching initializer");
+
+                    try
+                    {
+                        await initializer.InitializeImportAsync(this.context);
+                    }
+                    catch (NotImplementedException) { }
+
+                    this.Logger.LogInformation("Initializer complete");
+                }
+
+                this.context.Timer.Start();
+
+                this.context.Producer = this.StartCreatingCSEntryChangesAsync();
             }
             catch (Exception ex)
             {
-                logger.Error(ex);
+                this.Logger?.LogError(ex, "Error opening import connection");
                 throw;
             }
 
             return new OpenImportConnectionResults();
         }
 
-        public GetImportEntriesResults GetImportEntries(GetImportEntriesRunStep importRunStep)
-        {
-            return this.ConsumePageFromProducer();
-        }
-
-        public CloseImportConnectionResults CloseImportConnection(CloseImportConnectionRunStep importRunStep)
-        {
-            logger.Info("Closing import connection: {0}", importRunStep.Reason);
-
-            if (this.importContext == null)
-            {
-                logger.Trace("No import context detected");
-                return new CloseImportConnectionResults();
-            }
-
-            this.importContext.Timer.Stop();
-
-            if (importRunStep.Reason != CloseReason.Normal)
-            {
-                if (this.importContext.CancellationTokenSource != null)
-                {
-                    logger.Info("Cancellation request received");
-                    this.importContext.CancellationTokenSource.Cancel();
-                    this.importContext.CancellationTokenSource.Token.WaitHandle.WaitOne();
-                    logger.Info("Cancellation completed");
-                }
-            }
-
-            logger.Info("Import operation complete");
-            logger.Info($"Imported {this.importContext.ImportedItemCount} objects");
-
-            if (this.importContext.ImportedItemCount > 0 && this.importContext.Timer.Elapsed.TotalSeconds > 0)
-            {
-                if (this.importContext.ProducerDuration.TotalSeconds > 0)
-                {
-                    logger.Info($"CSEntryChange production duration: {this.importContext.ProducerDuration}");
-                    logger.Info($"CSEntryChange production speed: {(this.importContext.ImportedItemCount / this.importContext.ProducerDuration.TotalSeconds):N2} obj/sec");
-                }
-
-                logger.Info($"Import duration: {this.importContext.Timer.Elapsed}");
-                logger.Info($"Import speed: {(this.importContext.ImportedItemCount / this.importContext.Timer.Elapsed.TotalSeconds):N2} obj/sec");
-            }
-
-            if (this.importContext.OutgoingWatermark?.Any() == true)
-            {
-                string wm = JsonConvert.SerializeObject(this.importContext.OutgoingWatermark);
-                logger.Trace($"Watermark: {wm}");
-                return new CloseImportConnectionResults(wm);
-            }
-            else
-            {
-                return new CloseImportConnectionResults();
-            }
-        }
-
-        private void StartCreatingCSEntryChanges(ImportContext context)
-        {
-            if (context == null)
-            {
-                throw new ArgumentNullException(nameof(context));
-            }
-
-            logger.Info("Starting producer thread");
-
-            context.Producer = new Task(() =>
-            {
-                try
-                {
-                    List<Task> taskList = new List<Task>();
-
-                    foreach (SchemaType type in context.Types.Types)
-                    {
-                        IObjectImportProviderAsync asyncProvider = this.GetAsyncProviderForType(type);
-
-                        if (asyncProvider != null)
-                        {
-                            taskList.Add(Task.Run(() =>
-                           {
-                               logger.Info($"Starting async import of type {type.Name}");
-                               asyncProvider.Initialize(context);
-                               AsyncHelper.RunSync(asyncProvider.GetCSEntryChangesAsync(type));
-                               logger.Info($"Async import of type {type.Name} completed");
-                           }, context.CancellationTokenSource.Token));
-                        }
-                        else
-                        {
-                            IObjectImportProvider provider = this.GetProviderForType(type);
-
-                            taskList.Add(Task.Run(() =>
-                            {
-                                logger.Info($"Starting import of type {type.Name}");
-                                provider.Initialize(context);
-                                provider.GetCSEntryChanges(type);
-                                logger.Info($"Import of type {type.Name} completed");
-                            }, context.CancellationTokenSource.Token));
-                        }
-                    }
-
-                    Task.WaitAll(taskList.ToArray(), context.CancellationTokenSource.Token);
-                }
-                catch (OperationCanceledException)
-                {
-                    logger.Info("Producer thread canceled");
-                }
-                catch (Exception ex)
-                {
-                    logger.Info("Producer thread encountered an exception");
-                    logger.Error(ex);
-                    throw;
-                }
-                finally
-                {
-                    context.ProducerDuration = context.Timer.Elapsed;
-                    logger.Info("CSEntryChange production complete");
-                    context.ImportItems.CompleteAdding();
-                }
-            });
-
-            context.Producer.Start();
-        }
-
-        private IObjectImportProvider GetProviderForType(SchemaType type)
-        {
-            foreach (IObjectImportProvider provider in InterfaceManager.GetInstancesOfType<IObjectImportProvider>())
-            {
-                if (provider.CanImport(type))
-                {
-                    return provider;
-                }
-            }
-
-            throw new InvalidOperationException($"An import provider for the type '{type.Name}' could not be found");
-        }
-
-        private IObjectImportProviderAsync GetAsyncProviderForType(SchemaType type)
-        {
-            foreach (IObjectImportProviderAsync provider in InterfaceManager.GetInstancesOfType<IObjectImportProviderAsync>())
-            {
-                if (provider.CanImport(type))
-                {
-                    return provider;
-                }
-            }
-
-            return null;
-        }
-
-        private GetImportEntriesResults ConsumePageFromProducer()
+        public Task<GetImportEntriesResults> GetImportEntriesPageAsync()
         {
             int count = 0;
             bool mayHaveMore = false;
             GetImportEntriesResults results = new GetImportEntriesResults { CSEntries = new List<CSEntryChange>() };
 
-            if (this.importContext.ImportItems.IsCompleted)
+            if (this.context.ImportItems.IsCompleted)
             {
                 results.MoreToImport = false;
-                return results;
+                return Task.FromResult(results);
             }
 
             this.Batch++;
-            logger.Trace($"Producing page {this.Batch}");
+            this.Logger.LogTrace($"Producing page {this.Batch}");
 
-            while (!this.importContext.ImportItems.IsCompleted || this.importContext.CancellationTokenSource.IsCancellationRequested)
+            while (!this.context.ImportItems.IsCompleted || this.context.CancellationTokenSource.IsCancellationRequested)
             {
                 count++;
                 CSEntryChange csentry = null;
 
                 try
                 {
-                    csentry = this.importContext.ImportItems.Take();
-                    this.importContext.ImportedItemCount++;
+                    csentry = this.context.ImportItems.Take();
+                    this.context.ImportedItemCount++;
 
-                    logger.Trace($"Got record {this.importContext.ImportedItemCount}:{csentry.ErrorCodeImport}:{csentry?.ObjectModificationType}:{csentry?.ObjectType}:{csentry?.DN}");
+                    this.Logger.LogTrace($"Got record {this.context.ImportedItemCount}:{csentry.ErrorCodeImport}:{csentry?.ObjectModificationType}:{csentry?.ObjectType}:{csentry?.DN}");
                 }
                 catch (InvalidOperationException)
                 {
@@ -248,30 +119,146 @@ namespace Lithnet.Ecma2Framework
                     results.CSEntries.Add(csentry);
                 }
 
-                if (count >= this.importContext.RunStep.PageSize)
+                if (count >= this.context.RunStep.PageSize)
                 {
                     mayHaveMore = true;
                     break;
                 }
             }
 
-            if (this.importContext.Producer?.IsFaulted == true)
+            if (this.context.Producer?.IsFaulted == true)
             {
-                throw new ExtensibleExtensionException("The producer thread encountered an exception", this.importContext.Producer.Exception);
+                throw new ExtensibleExtensionException("The producer thread encountered an exception", this.context.Producer.Exception);
             }
 
             if (mayHaveMore)
             {
-                logger.Trace($"Page {this.Batch} complete");
+                this.Logger.LogTrace($"Page {this.Batch} complete");
             }
             else
             {
-                logger.Info("CSEntryChange consumption complete");
+                this.Logger.LogInformation("CSEntryChange consumption complete");
                 this.Batch = 0;
             }
 
             results.MoreToImport = mayHaveMore;
-            return results;
+            return Task.FromResult(results);
+        }
+
+        public Task<CloseImportConnectionResults> CloseImportConnectionAsync(CloseImportConnectionRunStep importRunStep)
+        {
+            this.Logger.LogInformation("Closing import connection: {0}", importRunStep.Reason);
+
+            if (this.context == null)
+            {
+                this.Logger.LogTrace("No import context detected");
+                return Task.FromResult(new CloseImportConnectionResults());
+            }
+
+            this.context.Timer.Stop();
+
+            if (importRunStep.Reason != CloseReason.Normal)
+            {
+                if (this.context.CancellationTokenSource != null)
+                {
+                    this.Logger.LogInformation("Cancellation request received");
+                    this.context.CancellationTokenSource.Cancel();
+                    this.context.CancellationTokenSource.Token.WaitHandle.WaitOne();
+                    this.Logger.LogInformation("Cancellation completed");
+                }
+            }
+
+            this.Logger.LogInformation("Import operation complete");
+            this.Logger.LogInformation($"Imported {this.context.ImportedItemCount} objects");
+
+            if (this.context.ImportedItemCount > 0 && this.context.Timer.Elapsed.TotalSeconds > 0)
+            {
+                if (this.context.ProducerDuration.TotalSeconds > 0)
+                {
+                    this.Logger.LogInformation($"CSEntryChange production duration: {this.context.ProducerDuration}");
+                    this.Logger.LogInformation($"CSEntryChange production speed: {(this.context.ImportedItemCount / this.context.ProducerDuration.TotalSeconds):N2} obj/sec");
+                }
+
+                this.Logger.LogInformation($"Import duration: {this.context.Timer.Elapsed}");
+                this.Logger.LogInformation($"Import speed: {(this.context.ImportedItemCount / this.context.Timer.Elapsed.TotalSeconds):N2} obj/sec");
+            }
+
+            if (this.context.OutgoingWatermark?.Any() == true)
+            {
+                string wm = JsonSerializer.Serialize(this.context.OutgoingWatermark, jsonOptions);
+                this.Logger.LogTrace($"Watermark: {wm}");
+                return Task.FromResult(new CloseImportConnectionResults(wm));
+            }
+            else
+            {
+                return Task.FromResult(new CloseImportConnectionResults());
+            }
+        }
+
+        private Task StartCreatingCSEntryChangesAsync()
+        {
+            this.Logger.LogInformation("Starting producer thread");
+
+            try
+            {
+                List<Task> taskList = new List<Task>();
+
+                foreach (SchemaType type in this.context.Types.Types)
+                {
+                    taskList.Add(this.CreateCSEntryChangesForTypeAsync(type));
+                }
+
+                Task.WaitAll(taskList.ToArray(), this.context.CancellationTokenSource.Token);
+            }
+            catch (OperationCanceledException)
+            {
+                this.Logger.LogInformation("Producer thread cancelled");
+            }
+            catch (Exception ex)
+            {
+                this.Logger.LogError(ex, "Producer thread encountered an exception");
+                throw;
+            }
+            finally
+            {
+                this.context.ProducerDuration = this.context.Timer.Elapsed;
+                this.Logger.LogInformation("CSEntryChange production complete");
+                this.context.ImportItems.CompleteAdding();
+            }
+
+            return Task.CompletedTask;
+        }
+
+        private async Task CreateCSEntryChangesForTypeAsync(SchemaType type)
+        {
+            IObjectImportProvider provider = await this.GetProviderForTypeAsync(type);
+            this.Logger.LogInformation($"Starting import of type {type.Name}");
+
+            try
+            {
+                await provider.InitializeAsync(this.context);
+            }
+            catch (NotImplementedException) { }
+
+            await provider.GetCSEntryChangesAsync(type);
+            this.Logger.LogInformation($"Import of type {type.Name} completed");
+        }
+
+        private async Task<IObjectImportProvider> GetProviderForTypeAsync(SchemaType type)
+        {
+            foreach (IObjectImportProvider provider in this.ServiceProvider.GetServices<IObjectImportProvider>())
+            {
+                try
+                {
+                    if (await provider.CanImportAsync(type))
+                    {
+                        return provider;
+                    }
+                }
+                catch (NotImplementedException) { }
+            }
+
+            throw new InvalidOperationException($"An import provider for the type '{type.Name}' could not be found");
         }
     }
 }

@@ -1,0 +1,34 @@
+﻿using System.Collections.ObjectModel;
+using Microsoft.MetadirectoryServices;
+
+namespace Lithnet.Ecma2Framework.Generated
+{
+    public class Ecma2ImportImplementation : IMAExtensible2CallImport
+    {
+        private Ecma2Import provider;
+
+        public Ecma2ImportImplementation()
+        {
+            var initializer = Ecma2Bootstrapper.GetInitializer();
+            this.provider = new Ecma2Import(initializer);
+        }
+
+        int IMAExtensible2CallImport.ImportDefaultPageSize => 100;
+
+        int IMAExtensible2CallImport.ImportMaxPageSize => 9999;
+
+        OpenImportConnectionResults IMAExtensible2CallImport.OpenImportConnection(KeyedCollection<string, ConfigParameter> configParameters, Schema types, OpenImportConnectionRunStep importRunStep)
+        {
+            return AsyncHelper.RunSync(this.provider.OpenImportConnectionAsync(configParameters, types, importRunStep));
+        }
+        GetImportEntriesResults IMAExtensible2CallImport.GetImportEntries(GetImportEntriesRunStep importRunStep)
+        {
+            return AsyncHelper.RunSync(this.provider.GetImportEntriesPageAsync());
+        }
+
+        CloseImportConnectionResults IMAExtensible2CallImport.CloseImportConnection(CloseImportConnectionRunStep importRunStep)
+        {
+            return AsyncHelper.RunSync(this.provider.CloseImportConnectionAsync(importRunStep));
+        }
+    }
+}

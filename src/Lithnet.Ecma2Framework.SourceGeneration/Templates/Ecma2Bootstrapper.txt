@@ -1,0 +1,20 @@
+﻿using Lithnet.Ecma2Framework.Internal;
+
+namespace Lithnet.Ecma2Framework.Generated
+{
+    internal static class Ecma2Bootstrapper
+    {
+        private static Ecma2Initializer initializer;
+
+        public static Ecma2Initializer GetInitializer()
+        {
+            if (initializer == null)
+            {
+                var bootStrapper = new %CLASSNAME%();
+                initializer = new Ecma2Initializer(bootStrapper, new Ecma2ConfigRegistrationProvider());
+            }
+
+            return initializer;
+        }
+    }
+}

@@ -1,13 +1,14 @@
-﻿using Microsoft.MetadirectoryServices;
+﻿using System.Threading.Tasks;
+using Microsoft.MetadirectoryServices;
 
 namespace Lithnet.Ecma2Framework
 {
     public interface IObjectImportProvider
     {
-        void Initialize(IImportContext context);
+        Task InitializeAsync(ImportContext context);
 
-        bool CanImport(SchemaType type);
+        Task<bool> CanImportAsync(SchemaType type);
 
-        void GetCSEntryChanges(SchemaType type);
+        Task GetCSEntryChangesAsync(SchemaType type);
     }
 }

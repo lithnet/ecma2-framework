@@ -1,19 +1,16 @@
-﻿using System.Collections.ObjectModel;
+﻿using System;
 using System.Diagnostics;
 using System.Threading;
-using Microsoft.MetadirectoryServices;
 
 namespace Lithnet.Ecma2Framework
 {
-    public class ExportContext : IExportContext
+    public class ExportContext
     {
-        public KeyedCollection<string, ConfigParameter> ConfigParameters { get; internal set; }
-
         internal CancellationTokenSource CancellationTokenSource { get; } = new CancellationTokenSource();
 
         public CancellationToken Token => this.CancellationTokenSource.Token;
 
-        public IConnectionContext ConnectionContext { get; internal set; }
+        public int ExportThreads { get; set; } = Environment.ProcessorCount * 2;
 
         public object CustomData { get; set; }
 

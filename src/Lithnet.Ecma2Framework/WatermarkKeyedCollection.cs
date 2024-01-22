@@ -1,10 +1,8 @@
 ﻿using System.Collections.ObjectModel;
 using System.Text;
-using Newtonsoft.Json;
 
 namespace Lithnet.Ecma2Framework
 {
-    [JsonArray("watermarks")]
     public class WatermarkKeyedCollection : KeyedCollection<string, Watermark>
     {
         protected override string GetKeyForItem(Watermark item)

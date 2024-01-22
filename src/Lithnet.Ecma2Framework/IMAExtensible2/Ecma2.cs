@@ -1,147 +1,200 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
+using System.Threading.Tasks;
+using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Logging;
 using Microsoft.MetadirectoryServices;
-using NLog;
 
 namespace Lithnet.Ecma2Framework
 {
-    public class Ecma2 :
-        IMAExtensible2GetSchema,
-        IMAExtensible2GetCapabilitiesEx,
-        IMAExtensible2GetParametersEx,
-        IMAExtensible2GetParameters
+    public class Ecma2 : Ecma2Base
     {
-        private static readonly Logger logger = LogManager.GetCurrentClassLogger();
+        public Ecma2(Ecma2Initializer initializer) : base(initializer)
+        {
+        }
 
-        public Schema GetSchema(KeyedCollection<string, ConfigParameter> configParameters)
+        public async Task<Schema> GetSchemaAsync(KeyedCollection<string, ConfigParameter> configParameters)
         {
             try
             {
-                Logging.SetupLogger(configParameters);
-                SchemaContext context = new SchemaContext()
-                {
-                    ConfigParameters = configParameters,
-                    ConnectionContext = InterfaceManager.GetProviderOrDefault<IConnectionContextProvider>()?.GetConnectionContext(configParameters, ConnectionContextOperationType.Schema)
-                };
+                this.InitializeDIContainer(configParameters);
 
-                ISchemaProvider provider = InterfaceManager.GetProviderOrThrow<ISchemaProvider>();
+                ISchemaProvider provider = this.ServiceProvider.GetRequiredService<ISchemaProvider>();
 
-                return provider.GetMmsSchema(context);
+                return await provider.GetMmsSchemaAsync();
             }
             catch (Exception ex)
             {
-                logger.Error(ex, "Could not retrieve schema");
+                this.Logger?.LogError(ex, "Could not retrieve schema");
                 throw;
             }
         }
 
-        public IList<ConfigParameterDefinition> GetConfigParameters(KeyedCollection<string, ConfigParameter> configParameters, ConfigParameterPage page)
+        public async Task<MACapabilities> GetCapabilitiesAsync(KeyedCollection<string, ConfigParameter> configParameters)
         {
             try
             {
-                Logging.SetupLogger(configParameters);
+                this.InitializeDIContainer(configParameters);
 
-                var configParameterDefinitions = new List<ConfigParameterDefinition>();
-                Logging.AddBuiltInLoggingParameters(page, configParameterDefinitions);
-                IConfigParametersProvider provider = InterfaceManager.GetProviderOrDefault<IConfigParametersProvider>();
+                ICapabilitiesProvider provider = this.ServiceProvider.GetRequiredService<ICapabilitiesProvider>();
+                return await provider.GetCapabilitiesAsync(this.ConfigParameters);
+            }
+            catch (Exception ex)
+            {
+                this.Logger?.LogError(ex, "Could not get capabilities");
+                throw;
+            }
+        }
+
+        public async Task<IList<ConfigParameterDefinition>> GetConfigParametersAsync(KeyedCollection<string, ConfigParameter> existingConfigParameters, ConfigParameterPage page, int pageNumber)
+        {
+            try
+            {
+                this.InitializeDIContainer(existingConfigParameters);
+
+                var newConfigParameters = new List<ConfigParameterDefinition>();
+                IConfigParametersProvider provider = this.ServiceProvider.GetService<IConfigParametersProvider>();
 
                 if (provider == null)
                 {
-                    var providerEx = InterfaceManager.GetProviderOrDefault<IConfigParametersProviderEx>();
-                    providerEx?.GetConfigParametersEx(configParameters, configParameterDefinitions, page, 1);
-                }
-                else
-                {
-                    provider.GetConfigParameters(configParameters, configParameterDefinitions, page);
+                    return newConfigParameters;
                 }
 
-                return configParameterDefinitions;
+                switch (page)
+                {
+                    case ConfigParameterPage.Capabilities:
+                        try
+                        {
+                            await provider.GetCapabilitiesConfigParametersAsync(this.ConfigParameters, newConfigParameters);
+                        }
+                        catch (NotImplementedException) { }
+                        break;
+
+                    case ConfigParameterPage.Schema:
+                        try
+                        {
+                            await provider.GetSchemaConfigParametersAsync(this.ConfigParameters, newConfigParameters, pageNumber);
+                        }
+                        catch (NotImplementedException) { }
+                        break;
+
+                    case ConfigParameterPage.Connectivity:
+                        try
+                        {
+                            await provider.GetConnectivityConfigParametersAsync(this.ConfigParameters, newConfigParameters);
+                        }
+                        catch (NotImplementedException) { }
+                        break;
+
+                    case ConfigParameterPage.Global:
+                        try
+                        {
+                            await provider.GetGlobalConfigParametersAsync(this.ConfigParameters, newConfigParameters);
+                        }
+                        catch (NotImplementedException) { }
+                        break;
+
+                    case ConfigParameterPage.RunStep:
+                        try
+                        {
+                            await provider.GetRunStepConfigParametersAsync(this.ConfigParameters, newConfigParameters);
+                        }
+                        catch (NotImplementedException) { }
+                        break;
+
+                    case ConfigParameterPage.Partition:
+                        try
+                        {
+                            await provider.GetPartitionConfigParametersAsync(this.ConfigParameters, newConfigParameters);
+                        }
+                        catch (NotImplementedException) { }
+                        break;
+                }
+
+                return newConfigParameters;
             }
             catch (Exception ex)
             {
-                logger.Error(ex, "Could not get config parameters");
+                this.Logger?.LogError(ex, "Could not get config parameters");
                 throw;
             }
         }
 
-        public ParameterValidationResult ValidateConfigParameters(KeyedCollection<string, ConfigParameter> configParameters, ConfigParameterPage page)
+        public async Task<ParameterValidationResult> ValidateConfigParametersAsync(KeyedCollection<string, ConfigParameter> configParameters, ConfigParameterPage page, int pageNumber)
         {
             try
             {
-                var result = Logging.ValidateBuiltInLoggingParameters(configParameters, page);
+                this.InitializeDIContainer(configParameters);
 
-                if (result != null)
+                IConfigParametersProvider provider = this.ServiceProvider.GetService<IConfigParametersProvider>();
+
+                ParameterValidationResult result = null;
+
+                if (provider == null)
                 {
-                    return result;
+                    return new ParameterValidationResult();
                 }
 
-                IConfigParametersProvider provider = InterfaceManager.GetProviderOrDefault<IConfigParametersProvider>();
-                return provider?.ValidateConfigParameters(configParameters, page) ?? new ParameterValidationResult();
+                switch (page)
+                {
+                    case ConfigParameterPage.Capabilities:
+                        try
+                        {
+                            result = await provider.ValidateCapabilitiesConfigParametersAsync(this.ConfigParameters);
+                        }
+                        catch (NotImplementedException) { }
+                        break;
+
+                    case ConfigParameterPage.Schema:
+                        try
+                        {
+                            result = await provider.ValidateSchemaConfigParametersAsync(this.ConfigParameters, pageNumber);
+                        }
+                        catch (NotImplementedException) { }
+                        break;
+
+                    case ConfigParameterPage.Connectivity:
+
+                        try
+                        {
+                            result = await provider.ValidateConnectivityConfigParametersAsync(this.ConfigParameters);
+                        }
+                        catch (NotImplementedException) { }
+                        break;
+
+                    case ConfigParameterPage.Global:
+                        try
+                        {
+                            result = await provider.ValidateGlobalConfigParametersAsync(this.ConfigParameters);
+                        }
+                        catch (NotImplementedException) { }
+                        break;
+
+                    case ConfigParameterPage.RunStep:
+                        try
+                        {
+                            result = await provider.ValidateRunStepConfigParametersAsync(this.ConfigParameters);
+                        }
+                        catch (NotImplementedException) { }
+                        break;
+
+                    case ConfigParameterPage.Partition:
+                        try
+                        {
+                            result = await provider.ValidatePartitionConfigParametersAsync(this.ConfigParameters);
+                        }
+                        catch (NotImplementedException) { }
+                        break;
+                }
+
+                return result ?? new ParameterValidationResult();
             }
             catch (Exception ex)
             {
-                logger.Error(ex, "Could not validate config parameters");
+                this.Logger?.LogError(ex, "Could not validate config parameters");
                 throw;
             }
-        }
-
-        public MACapabilities GetCapabilitiesEx(KeyedCollection<string, ConfigParameter> configParameters)
-        {
-            try
-            {
-                Logging.SetupLogger(configParameters);
-                ICapabilitiesProvider provider = InterfaceManager.GetProviderOrThrow<ICapabilitiesProvider>();
-                return provider.GetCapabilitiesEx(configParameters);
-            }
-            catch (Exception ex)
-            {
-                logger.Error(ex, "Could not get capabilities");
-                throw;
-            }
-        }
-
-        public IList<ConfigParameterDefinition> GetConfigParametersEx(KeyedCollection<string, ConfigParameter> configParameters, ConfigParameterPage page, int pageNumber)
-        {
-            IConfigParametersProviderEx provider = InterfaceManager.GetProviderOrDefault<IConfigParametersProviderEx>();
-
-            if (provider == null)
-            {
-                if (pageNumber > 1)
-                {
-                    return null;
-                }
-
-                return this.GetConfigParameters(configParameters, page);
-            }
-
-            var configParameterDefinitions = new List<ConfigParameterDefinition>();
-
-            if (pageNumber == 1)
-            {
-                Logging.AddBuiltInLoggingParameters(page, configParameterDefinitions);
-            }
-
-            provider.GetConfigParametersEx(configParameters, configParameterDefinitions, page, pageNumber);
-
-            return configParameterDefinitions;
-        }
-
-        public ParameterValidationResult ValidateConfigParametersEx(KeyedCollection<string, ConfigParameter> configParameters, ConfigParameterPage page, int pageNumber)
-        {
-            IConfigParametersProviderEx provider = InterfaceManager.GetProviderOrDefault<IConfigParametersProviderEx>();
-
-            if (provider == null)
-            {
-                if (pageNumber > 1)
-                {
-                    return null;
-                }
-
-                return this.ValidateConfigParameters(configParameters, page);
-            }
-
-            return provider.ValidateConfigParametersEx(configParameters, page, pageNumber);
         }
     }
 }

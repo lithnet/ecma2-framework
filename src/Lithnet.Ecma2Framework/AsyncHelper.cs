@@ -4,7 +4,7 @@ using System.Threading.Tasks;
 
 namespace Lithnet.Ecma2Framework
 {
-    internal static class AsyncHelper
+    public static class AsyncHelper
     {
         // This function destroys ILMerge, so we switched to ILRepack instead. The GetAwaiter() call seems to be responsible for making ILMerge hang
         public static TResult RunSync<TResult>(Task<TResult> func)

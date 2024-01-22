@@ -1,0 +1,49 @@
+﻿using System;
+using System.Collections.Generic;
+using Lithnet.Ecma2Framework.Internal;
+using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.DependencyInjection.Extensions;
+
+namespace Lithnet.Ecma2Framework.Generated
+{
+    internal class Ecma2ConfigRegistrationProvider : IConfigRegistrationProvider
+    {
+        private readonly static Dictionary<string, string> nameMappings = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
+        {
+%MAPPEDPROPERTIES%
+        };
+
+        private readonly static Dictionary<string, string> typeMappings = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
+        {
+%TYPEMAPPINGS%
+        };
+
+        public void RegisterOptions(IServiceCollection services, IConfiguration configuration)
+        {
+%SERVICEREGISTRATIONS%
+        }
+
+        public string GetTypeNameFromParameterName(string name)
+		{
+			if (typeMappings.ContainsKey(name))
+			{
+				return typeMappings[name];
+			}
+
+			return "string";
+		}
+
+        public string GetKeyFromParameterName(string name)
+        {
+            if (nameMappings.ContainsKey(name))
+            {
+                return nameMappings[name];
+            }
+
+            char[] arr = name.ToCharArray();
+            arr = Array.FindAll<char>(arr, (c => (char.IsLetter(c))));
+            return new string(arr);
+        }
+    }
+}

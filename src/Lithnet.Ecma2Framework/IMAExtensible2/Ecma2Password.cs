@@ -3,165 +3,123 @@ using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.Linq;
 using System.Security;
+using System.Threading.Tasks;
+using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Logging;
 using Microsoft.MetadirectoryServices;
-using NLog;
 
 namespace Lithnet.Ecma2Framework
 {
-    public class Ecma2Password :
-        IMAExtensible2Password
+    public class Ecma2Password : Ecma2Base
     {
-        private static readonly Logger logger = LogManager.GetCurrentClassLogger();
+        private List<IObjectPasswordProvider> providerCache;
+        private PasswordContext context;
 
-        private static List<IObjectPasswordProvider> providerCache;
+        public Ecma2Password(Ecma2Initializer initializer) : base(initializer)
+        {
+        }
 
-        private static List<IObjectPasswordProviderAsync> asyncProviderCache;
-
-        private static List<IObjectPasswordProvider> Providers
+        private List<IObjectPasswordProvider> Providers
         {
             get
             {
-                if (Ecma2Password.providerCache == null)
-                {
-                    Ecma2Password.providerCache = InterfaceManager.GetInstancesOfType<IObjectPasswordProvider>().ToList();
-                }
-
-                return Ecma2Password.providerCache;
+                this.providerCache ??= this.ServiceProvider.GetServices<IObjectPasswordProvider>().ToList();
+                return this.providerCache;
             }
         }
 
-        private static List<IObjectPasswordProviderAsync> AsyncProviders
+        public Task<ConnectionSecurityLevel> GetConnectionSecurityLevelAsync()
         {
-            get
+            return Task.FromResult(ConnectionSecurityLevel.Secure);
+        }
+
+        public async Task OpenPasswordConnectionAsync(KeyedCollection<string, ConfigParameter> configParameters, Partition partition)
+        {
+            this.InitializeDIContainer(configParameters);
+
+            this.context = new PasswordContext() { Partition = partition };
+
+            var initializer = this.ServiceProvider.GetService<IContextInitializer>();
+
+            if (initializer != null)
             {
-                if (Ecma2Password.asyncProviderCache == null)
+                this.Logger.LogInformation("Launching initializer");
+
+                try
                 {
-                    Ecma2Password.asyncProviderCache = InterfaceManager.GetInstancesOfType<IObjectPasswordProviderAsync>().ToList();
+                    await initializer.InitializePasswordOperationAsync(this.context);
                 }
+                catch (NotImplementedException) { }
 
-                return Ecma2Password.asyncProviderCache;
+                this.Logger.LogInformation("Initializer complete");
             }
+
+            await this.InitializeProvidersAsync(this.context);
         }
 
-        private PasswordContext passwordContext;
-
-        public void OpenPasswordConnection(KeyedCollection<string, ConfigParameter> configParameters, Partition partition)
+        public Task ClosePasswordConnectionAsync()
         {
-            Logging.SetupLogger(configParameters);
-            this.passwordContext = new PasswordContext()
-            {
-                ConnectionContext = InterfaceManager.GetProviderOrDefault<IConnectionContextProvider>()?.GetConnectionContext(configParameters, ConnectionContextOperationType.Password),
-                ConfigParameters = configParameters
-            };
-
-            this.InitializeProviders(this.passwordContext);
+            return Task.CompletedTask;
         }
 
-        public void ClosePasswordConnection()
-        {
-        }
-
-        public ConnectionSecurityLevel GetConnectionSecurityLevel()
-        {
-            return ConnectionSecurityLevel.Secure;
-        }
-
-        public void SetPassword(CSEntry csentry, SecureString newPassword, PasswordOptions options)
+        public async Task SetPasswordAsync(CSEntry csentry, SecureString newPassword, PasswordOptions options)
         {
             try
             {
-                logger.Trace($"Setting password for: {csentry.DN}");
-                this.SetPasswordWithProvider(csentry, newPassword, options);
-                logger.Info($"Successfully set password for: {csentry.DN}");
+                this.Logger.LogTrace($"Setting password for: {csentry.DN}");
+                IObjectPasswordProvider provider = await this.GetProviderForTypeAsync(csentry);
+                await provider.SetPasswordAsync(csentry, newPassword, options);
+                this.Logger.LogInformation($"Successfully set password for: {csentry.DN}");
             }
             catch (Exception ex)
             {
-                logger.Error($"Error setting password for {csentry.DN}");
-                logger.Error(ex);
+                this.Logger.LogError(ex, $"Error setting password for {csentry.DN}");
                 throw;
             }
         }
 
-        public void ChangePassword(CSEntry csentry, SecureString oldPassword, SecureString newPassword)
+        public async Task ChangePasswordAsync(CSEntry csentry, SecureString oldPassword, SecureString newPassword)
         {
             try
             {
-                logger.Info($"Changing password for: {csentry.DN}");
-                this.ChangePasswordWithProvider(csentry, oldPassword, newPassword);
-                logger.Info($"Successfully changed password for: {csentry.DN}");
+                this.Logger.LogInformation($"Changing password for: {csentry.DN}");
+                IObjectPasswordProvider provider = await this.GetProviderForTypeAsync(csentry);
+                await provider.ChangePasswordAsync(csentry, oldPassword, newPassword);
+                this.Logger.LogInformation($"Successfully changed password for: {csentry.DN}");
             }
             catch (Exception ex)
             {
-                logger.Error($"Error changing password for {csentry.DN}");
-                logger.Error(ex);
+                this.Logger.LogError(ex, $"Error changing password for {csentry.DN}");
                 throw;
             }
         }
 
-        private void SetPasswordWithProvider(CSEntry csentry, SecureString newPassword, PasswordOptions options)
+        private async Task<IObjectPasswordProvider> GetProviderForTypeAsync(CSEntry csentry)
         {
-            IObjectPasswordProviderAsync asyncProvider = this.GetAsyncProviderForType(csentry);
-            if (asyncProvider != null)
+            foreach (IObjectPasswordProvider provider in this.Providers)
             {
-                AsyncHelper.RunSync(asyncProvider.SetPasswordAsync(csentry, newPassword, options));
-            }
-            else
-            {
-                IObjectPasswordProvider provider = this.GetProviderForType(csentry);
-                provider.SetPassword(csentry, newPassword, options);
-            }
-        }
-
-        private void ChangePasswordWithProvider(CSEntry csentry, SecureString oldPassword, SecureString newPassword)
-        {
-            IObjectPasswordProviderAsync asyncProvider = this.GetAsyncProviderForType(csentry);
-            if (asyncProvider != null)
-            {
-                AsyncHelper.RunSync(asyncProvider.ChangePasswordAsync(csentry, oldPassword, newPassword));
-            }
-            else
-            {
-                IObjectPasswordProvider provider = this.GetProviderForType(csentry);
-                provider.ChangePassword(csentry, oldPassword, newPassword);
-            }
-        }
-
-        private IObjectPasswordProviderAsync GetAsyncProviderForType(CSEntry csentry)
-        {
-            foreach (IObjectPasswordProviderAsync provider in Ecma2Password.AsyncProviders)
-            {
-                if (provider.CanPerformPasswordOperation(csentry))
+                try
                 {
-                    return provider;
+                    if (await provider.CanPerformPasswordOperationAsync(csentry))
+                    {
+                        return provider;
+                    }
                 }
-            }
-
-            return null;
-        }
-
-        private IObjectPasswordProvider GetProviderForType(CSEntry csentry)
-        {
-            foreach (IObjectPasswordProvider provider in Ecma2Password.Providers)
-            {
-                if (provider.CanPerformPasswordOperation(csentry))
-                {
-                    return provider;
-                }
+                catch (NotImplementedException) { }
             }
 
             throw new InvalidOperationException($"An export provider for the type '{csentry.ObjectType}' could not be found");
         }
 
-        private void InitializeProviders(PasswordContext context)
+        private async Task InitializeProvidersAsync(PasswordContext context)
         {
-            foreach (var provider in AsyncProviders)
+            foreach (var provider in this.Providers)
             {
-                provider.Initialize(context);
-            }
-
-            foreach (var provider in Providers)
-            {
-                provider.Initialize(context);
+                try
+                {
+                    await provider.InitializeAsync(context);
+                }
+                catch (NotImplementedException) { }
             }
         }
     }

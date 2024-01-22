@@ -1,0 +1,19 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+	<PropertyGroup>
+		<TargetFramework>net48</TargetFramework>
+		<LangVersion>9</LangVersion>
+		<ILRepackEnabled>true</ILRepackEnabled>
+	</PropertyGroup>
+
+	<ItemGroup>
+		<PackageReference Include="Lithnet.Ecma2Framework" Version="2.0.0-beta50" />
+		<PackageReference Include="ILRepack.Lib.MSBuild.Task" Version="2.0.22" PrivateAssets="none" IncludeAssets="all" />
+	</ItemGroup>
+
+	<ItemGroup>
+		<Reference Include="Microsoft.MetadirectoryServicesEx">
+			<HintPath>..\Lithnet.Ecma2Framework\lib\Microsoft.MetadirectoryServicesEx.dll</HintPath>
+		</Reference>
+		<Reference Include="System.Net.Http" />
+	</ItemGroup>
+</Project>
