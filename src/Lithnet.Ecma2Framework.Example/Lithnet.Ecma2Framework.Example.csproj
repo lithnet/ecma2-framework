@@ -6,8 +6,7 @@
 	</PropertyGroup>
 
 	<ItemGroup>
-		<PackageReference Include="Lithnet.Ecma2Framework" Version="2.0.0-beta50" />
-		<PackageReference Include="ILRepack.Lib.MSBuild.Task" Version="2.0.22" PrivateAssets="none" IncludeAssets="all" />
+		<PackageReference Include="Lithnet.Ecma2Framework" Version="2.0.0-beta120" />
 	</ItemGroup>
 
 	<ItemGroup>

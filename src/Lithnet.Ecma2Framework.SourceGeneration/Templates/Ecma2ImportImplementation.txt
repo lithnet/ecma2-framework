@@ -1,4 +1,5 @@
 ﻿using System.Collections.ObjectModel;
+using Lithnet.Ecma2Framework.Internal;
 using Microsoft.MetadirectoryServices;
 
 namespace Lithnet.Ecma2Framework.Generated

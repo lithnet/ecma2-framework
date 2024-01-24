@@ -5,7 +5,7 @@ namespace Lithnet.Ecma2Framework.Example
 {
     internal class SchemaProvider : ISchemaProvider
     {
-        public Task<Schema> GetMmsSchemaAsync(SchemaContext context)
+        public Task<Schema> GetMmsSchemaAsync()
         {
             Schema mmsSchema = new Schema();
             mmsSchema.Types.Add(this.GetSchemaTypeUser());

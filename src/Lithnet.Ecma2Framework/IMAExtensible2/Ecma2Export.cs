@@ -7,10 +7,15 @@ using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Options;
 using Microsoft.MetadirectoryServices;
 
-namespace Lithnet.Ecma2Framework
+namespace Lithnet.Ecma2Framework.Internal
 {
+    /// <summary>
+    /// <para>Provides the main export functionality for the ECMA2 framework</para>
+    /// <para>This class is called by generated code, and should not be called directly</para>
+    /// </summary>
     public class Ecma2Export : Ecma2Base
     {
         private List<IObjectExportProvider> providerCache;
@@ -37,7 +42,7 @@ namespace Lithnet.Ecma2Framework
         {
             this.InitializeDIContainer(configParameters);
 
-            this.context = new ExportContext();
+            this.context = new ExportContext(exportRunStep, types);
 
             try
             {
@@ -48,7 +53,7 @@ namespace Lithnet.Ecma2Framework
                 if (initializer != null)
                 {
                     this.Logger.LogInformation("Launching initializer");
-                    
+
                     try
                     {
                         await initializer.InitializeExportAsync(this.context);
@@ -72,10 +77,12 @@ namespace Lithnet.Ecma2Framework
         {
             PutExportEntriesResults results = new PutExportEntriesResults();
 
+            var options = this.ServiceProvider.GetRequiredService<IOptions<Ecma2FrameworkOptions>>().Value;
+
             ParallelOptions po = new ParallelOptions
             {
-                MaxDegreeOfParallelism = Math.Max(1, this.context.ExportThreads),
-                CancellationToken = this.context.Token
+                MaxDegreeOfParallelism = Math.Max(1, options.ExportThreads),
+                CancellationToken = this.context.CancellationTokenSource.Token
             };
 
             Parallel.ForEach(csEntries, po, (csentry) =>
@@ -161,7 +168,7 @@ namespace Lithnet.Ecma2Framework
         private async Task<CSEntryChangeResult> PutCSEntryChangeAsync(CSEntryChange csentry)
         {
             IObjectExportProvider provider = await this.GetProviderForTypeAsync(csentry);
-            return await provider.PutCSEntryChangeAsync(csentry);
+            return await provider.PutCSEntryChangeAsync(csentry, this.context.CancellationTokenSource.Token);
         }
 
         private async Task<IObjectExportProvider> GetProviderForTypeAsync(CSEntryChange csentry)

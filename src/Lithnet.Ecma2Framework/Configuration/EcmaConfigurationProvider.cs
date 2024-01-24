@@ -3,6 +3,9 @@ using Microsoft.Extensions.Configuration;
 
 namespace Lithnet.Ecma2Framework
 {
+    /// <summary>
+    /// A configuration provider that wraps the configuration parameters provided by the synchronization service and presents them to the underlying Microsoft.Extensions.Configuration framework for use in Options<T> data types
+    /// </summary>
     internal class EcmaConfigurationProvider : ConfigurationProvider
     {
         private ConfigParameters configParameters;

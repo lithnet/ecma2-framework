@@ -9,8 +9,12 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using Microsoft.MetadirectoryServices;
 
-namespace Lithnet.Ecma2Framework
+namespace Lithnet.Ecma2Framework.Internal
 {
+    /// <summary>
+    /// <para>Provides the main import functionality for the ECMA2 framework</para>
+    /// <para>This class is called by generated code, and should not be called directly</para>
+    /// </summary>
     public class Ecma2Import : Ecma2Base
     {
         private static readonly JsonSerializerOptions jsonOptions = new JsonSerializerOptions()
@@ -32,12 +36,7 @@ namespace Lithnet.Ecma2Framework
         {
             this.InitializeDIContainer(configParameters);
 
-            this.context = new ImportContext()
-            {
-                RunStep = importRunStep,
-                ImportItems = new BlockingCollection<CSEntryChange>(),
-                Types = types
-            };
+            this.context = new ImportContext(importRunStep, types);
 
             try
             {
@@ -47,11 +46,12 @@ namespace Lithnet.Ecma2Framework
                 {
                     try
                     {
-                        this.context.IncomingWatermark = JsonSerializer.Deserialize<WatermarkKeyedCollection>(importRunStep.CustomData, jsonOptions);
+                        this.context.IncomingWatermark = JsonSerializer.Deserialize<ConcurrentDictionary<string, string>>(importRunStep.CustomData, jsonOptions);
                     }
                     catch (Exception ex)
                     {
-                        this.Logger.LogError(ex, "Could not deserialize watermark");
+                        this.Logger.LogWarning(ex, "Could not deserialize watermark");
+                        this.context.IncomingWatermark = new ConcurrentDictionary<string, string>();
                     }
                 }
 
@@ -72,7 +72,9 @@ namespace Lithnet.Ecma2Framework
 
                 this.context.Timer.Start();
 
-                this.context.Producer = this.StartCreatingCSEntryChangesAsync();
+                this.context.Producer = Task.Run(async () => await this.StartCreatingCSEntryChangesAsync());
+
+                this.Logger.LogInformation("Import initialization complete");
             }
             catch (Exception ex)
             {
@@ -96,7 +98,7 @@ namespace Lithnet.Ecma2Framework
             }
 
             this.Batch++;
-            this.Logger.LogTrace($"Producing page {this.Batch}");
+            this.Logger.LogTrace($"Consuming page {this.Batch}");
 
             while (!this.context.ImportItems.IsCompleted || this.context.CancellationTokenSource.IsCancellationRequested)
             {
@@ -133,11 +135,11 @@ namespace Lithnet.Ecma2Framework
 
             if (mayHaveMore)
             {
-                this.Logger.LogTrace($"Page {this.Batch} complete");
+                this.Logger.LogTrace($"Consuming page {this.Batch} complete");
             }
             else
             {
-                this.Logger.LogInformation("CSEntryChange consumption complete");
+                this.Logger.LogInformation("Consumption is complete");
                 this.Batch = 0;
             }
 
@@ -205,7 +207,7 @@ namespace Lithnet.Ecma2Framework
 
                 foreach (SchemaType type in this.context.Types.Types)
                 {
-                    taskList.Add(this.CreateCSEntryChangesForTypeAsync(type));
+                    taskList.Add(Task.Run(async () => await this.CreateCSEntryChangesForTypeAsync(type)));
                 }
 
                 Task.WaitAll(taskList.ToArray(), this.context.CancellationTokenSource.Token);
@@ -222,7 +224,7 @@ namespace Lithnet.Ecma2Framework
             finally
             {
                 this.context.ProducerDuration = this.context.Timer.Elapsed;
-                this.Logger.LogInformation("CSEntryChange production complete");
+                this.Logger.LogInformation("Producer thread complete");
                 this.context.ImportItems.CompleteAdding();
             }
 
@@ -240,7 +242,25 @@ namespace Lithnet.Ecma2Framework
             }
             catch (NotImplementedException) { }
 
-            await provider.GetCSEntryChangesAsync(type);
+            this.context.IncomingWatermark.TryGetValue(type.Name, out var inboundWatermark);
+
+            if (this.context.InDelta && inboundWatermark == null)
+            {
+                throw new WarningNoWatermarkException($"No watermark was available for the type '{type.Name}'. Please run a full import first");
+            }
+
+            await provider.GetCSEntryChangesAsync(type, this.context.ImportCollectionWrapper, inboundWatermark, this.context.CancellationTokenSource.Token);
+
+            try
+            {
+                var outboundWatermark = await provider.GetOutboundWatermark(type, this.context.CancellationTokenSource.Token);
+                if (outboundWatermark != null)
+                {
+                    this.context.OutgoingWatermark.TryAdd(type.Name, outboundWatermark);
+                }
+            }
+            catch (NotImplementedException) { }
+
             this.Logger.LogInformation($"Import of type {type.Name} completed");
         }
 

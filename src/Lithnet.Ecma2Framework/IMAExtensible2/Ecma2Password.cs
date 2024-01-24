@@ -8,8 +8,12 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using Microsoft.MetadirectoryServices;
 
-namespace Lithnet.Ecma2Framework
+namespace Lithnet.Ecma2Framework.Internal
 {
+    /// <summary>
+    /// <para>Provides the main password management functionality for the ECMA2 framework</para>
+    /// <para>This class is called by generated code, and should not be called directly</para>
+    /// </summary>
     public class Ecma2Password : Ecma2Base
     {
         private List<IObjectPasswordProvider> providerCache;
@@ -37,7 +41,7 @@ namespace Lithnet.Ecma2Framework
         {
             this.InitializeDIContainer(configParameters);
 
-            this.context = new PasswordContext() { Partition = partition };
+            this.context = new PasswordContext(partition);
 
             var initializer = this.ServiceProvider.GetService<IContextInitializer>();
 

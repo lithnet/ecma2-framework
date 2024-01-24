@@ -2,6 +2,9 @@
 
 namespace Lithnet.Ecma2Framework
 {
+    /// <summary>
+    /// Defines a configuration parameter that is rendered as a drop down control in the management agent's configuration pages
+    /// </summary>
     [AttributeUsage(AttributeTargets.Property, AllowMultiple = false)]
     public class DropdownParameterAttribute : DataParameterAttribute
     {

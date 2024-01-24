@@ -1,57 +1,12 @@
-﻿using System;
-using System.Collections.Generic;
+﻿using System.Collections.Generic;
 using System.Net.Http;
-using System.Net.Http.Headers;
+using System.Text.Json;
 using System.Threading.Tasks;
+using Microsoft.Extensions.Logging;
 using Microsoft.MetadirectoryServices;
 
 namespace Lithnet.Ecma2Framework.Example
 {
-    internal class OperationData
-    {
-        public HttpClient Client { get; set; }
-    }
-
-    internal class OperationInitializer : IOperationInitializer
-    {
-        public Task InitializeExportAsync(IExportContext context)
-        {
-            context.CustomData = this.CreateOperationData();
-            return Task.CompletedTask;
-        }
-
-        public Task InitializeImportAsync(IImportContext context)
-        {
-            context.CustomData = this.CreateOperationData();
-            return Task.CompletedTask;
-        }
-
-        public Task InitializePasswordOperationAsync(IPasswordContext context)
-        {
-            context.CustomData = this.CreateOperationData();
-            return Task.CompletedTask;
-        }
-
-        public Task InitializeSchemaOperationAsync(ISchemaContext context)
-        {
-            context.CustomData = this.CreateOperationData();
-            return Task.CompletedTask;
-        }
-
-        private OperationData CreateOperationData()
-        {
-            return new OperationData() { Client = this.CreateHttpClient() };
-        }
-
-        private HttpClient CreateHttpClient()
-        {
-            HttpClient client = new HttpClient();
-            client.BaseAddress = new Uri("https://jsonplaceholder.typicode.com");
-            client.DefaultRequestHeaders.Accept.Clear();
-            client.DefaultRequestHeaders.Accept.Add(new MediaTypeWithQualityHeaderValue("application/json"));
-            return client;
-        }
-    }
 
     internal class User
     {
@@ -66,11 +21,15 @@ namespace Lithnet.Ecma2Framework.Example
 
     internal class UserImportProvider : ProducerConsumerImportProvider<User>
     {
-        HttpClient client;
+        private readonly HttpClient client;
+
+        public UserImportProvider(HttpClient client, ILogger<UserImportProvider> logger) : base(logger)
+        {
+            this.client = client;
+        }
 
         protected override Task OnInitializeAsync()
         {
-            this.client = ((OperationData)this.ImportContext.CustomData).Client;
             return Task.CompletedTask;
         }
 
@@ -121,7 +80,7 @@ namespace Lithnet.Ecma2Framework.Example
 
             var usersData = await result.Content.ReadAsStringAsync();
 
-            var users = Newtonsoft.Json.JsonConvert.DeserializeObject<List<User>>(usersData);
+            var users = JsonSerializer.Deserialize<List<User>>(usersData);
 
             foreach (User user in users)
             {

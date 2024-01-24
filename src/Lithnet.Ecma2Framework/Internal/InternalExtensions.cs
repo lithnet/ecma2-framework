@@ -2,7 +2,7 @@
 using System.Runtime.InteropServices;
 using System.Security;
 
-namespace Lithnet.Ecma2Framework
+namespace Lithnet.Ecma2Framework.Internal
 {
     internal static class InternalExtensions
     {

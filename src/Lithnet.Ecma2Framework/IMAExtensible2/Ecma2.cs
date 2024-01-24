@@ -6,8 +6,12 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using Microsoft.MetadirectoryServices;
 
-namespace Lithnet.Ecma2Framework
+namespace Lithnet.Ecma2Framework.Internal
 {
+    /// <summary>
+    /// <para>A class responsible for providing the working implementation of the IMAExtensible2 interfaces related to configuration, schema, and capabilities</para>
+    /// <para>This class is called by generated code, and should not be called directly</para>
+    /// </summary>
     public class Ecma2 : Ecma2Base
     {
         public Ecma2(Ecma2Initializer initializer) : base(initializer)

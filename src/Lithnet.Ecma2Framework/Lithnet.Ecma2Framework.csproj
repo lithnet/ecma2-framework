@@ -16,7 +16,7 @@
 		<Company>Lithnet</Company>
 		<Copyright>Copyright 2024 Lithnet Pty Ltd</Copyright>
 		<ProductName>Lithnet ECMA2 framework</ProductName>
-		<Version>2.0.0-beta120</Version>
+		<Version>2.0.0-beta132</Version>
 		<Authors>Lithnet</Authors>
 		<AutoIncrementPackageRevision>true</AutoIncrementPackageRevision>
 		<IsPackable>true</IsPackable>
@@ -38,6 +38,15 @@
 	</PropertyGroup>
 
 	<ItemGroup>
+	  <Compile Remove="Enums\**" />
+	  <Compile Remove="Properties\**" />
+	  <EmbeddedResource Remove="Enums\**" />
+	  <EmbeddedResource Remove="Properties\**" />
+	  <None Remove="Enums\**" />
+	  <None Remove="Properties\**" />
+	</ItemGroup>
+
+	<ItemGroup>
 		<PackageReference Include="Microsoft.Extensions.Options.ConfigurationExtensions" Version="8.0.0" />
 		<PackageReference Include="Microsoft.Extensions.Configuration" Version="8.0.0" />
 		<PackageReference Include="Microsoft.Extensions.DependencyInjection" Version="8.0.0" />
@@ -47,15 +56,8 @@
 		<PackageReference Include="System.Interactive.Async" Version="6.0.1" />
 		<PackageReference Include="Microsoft.Bcl.AsyncInterfaces" Version="8.0.0" />
 		<PackageReference Include="Microsoft.SourceLink.GitHub" Version="8.0.0" PrivateAssets="all" />
-		<PackageReference Include="System.Text.Json" Version="8.0.1" />
 		<PackageReference Include="System.Threading.Tasks.Dataflow" Version="8.0.0" />
-		<!-- 
-		without this, assemblies dont resolve. Something is tagging attributes in the compiled code and causes TypeLoad errors in the ECMA 
-		https://github.com/gluck/il-repack/issues/263
-		-->
-		<!--<PackageReference Include="Microsoft.CodeAnalysis.Common" Version="4.8.0" />-->
-
-		<!--<PackageReference Include="ILRepack.Lib.MSBuild.Task" Version="2.0.22" PrivateAssets="none" IncludeAssets="all"/>-->
+		<PackageReference Include="System.Text.Json" Version="8.0.1" />
 	</ItemGroup>
 
 	<ItemGroup>
@@ -80,11 +82,6 @@
 			<OutputItemType>Content</OutputItemType>
 			<CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
 		</ProjectReference>
-	</ItemGroup>
-
-	<ItemGroup>
-	  <Folder Include="Enums\" />
-	  <Folder Include="Properties\" />
 	</ItemGroup>
 </Project>
 

@@ -4,8 +4,11 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using Microsoft.MetadirectoryServices;
 
-namespace Lithnet.Ecma2Framework
+namespace Lithnet.Ecma2Framework.Internal
 {
+    /// <summary>
+    /// Provides a base class for ECMA2 implementation classes
+    /// </summary>
     public abstract class Ecma2Base
     {
         private readonly Ecma2Initializer initializer;

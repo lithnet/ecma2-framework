@@ -3,6 +3,9 @@ using Microsoft.Extensions.Configuration;
 
 namespace Lithnet.Ecma2Framework
 {
+    /// <summary>
+    /// A configuration source that exposes a provider to facilitate providing management agent configuration parameters as Options<T> types
+    /// </summary>
     internal class EcmaConfigurationSource : IConfigurationSource
     {
         private readonly object lockObject = new object();

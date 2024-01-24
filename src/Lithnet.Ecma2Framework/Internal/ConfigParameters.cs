@@ -3,23 +3,34 @@ using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using Microsoft.MetadirectoryServices;
 
-namespace Lithnet.Ecma2Framework
+namespace Lithnet.Ecma2Framework.Internal
 {
+    /// <summary>
+    /// A default implementation of the IConfigParameters provider, which wraps the native configuration parameters provided by the synchronization service
+    /// </summary>
     public class ConfigParameters : IConfigParameters
     {
         private KeyedCollection<string, ConfigParameter> parameters;
 
         internal event EventHandler ConfigParametersChanged;
 
+        /// <summary>
+        /// Initializes a new instance of the ConfigParameters class
+        /// </summary>
         public ConfigParameters()
         {
         }
 
+        /// <summary>
+        /// Initializes a new instance of the ConfigParameters class
+        /// </summary>
+        /// <param name="parameters">The config parameter dictionary provided by the synchronization service</param>
         public ConfigParameters(KeyedCollection<string, ConfigParameter> parameters)
         {
             this.Parameters = parameters;
         }
 
+        /// <inheritdoc/>
         public KeyedCollection<string, ConfigParameter> Parameters
         {
             get { return this.parameters; }
@@ -30,6 +41,7 @@ namespace Lithnet.Ecma2Framework
             }
         }
 
+        /// <inheritdoc/>
         public bool HasValue(string name)
         {
             if (this.Parameters == null)
@@ -40,11 +52,13 @@ namespace Lithnet.Ecma2Framework
             return this.Parameters.Contains(name);
         }
 
+        /// <inheritdoc/>
         public string GetString(string name)
         {
             return this.GetString(name, null);
         }
 
+        /// <inheritdoc/>
         public string GetString(string name, string defaultValue)
         {
             if (this.Parameters == null)
@@ -69,6 +83,7 @@ namespace Lithnet.Ecma2Framework
             }
         }
 
+        /// <inheritdoc/>
         public bool GetBool(string name, bool defaultValue)
         {
             string value = this.GetString(name);
@@ -88,6 +103,7 @@ namespace Lithnet.Ecma2Framework
             }
         }
 
+        /// <inheritdoc/>
         public int GetInt(string name, int defaultValue)
         {
             string value = this.GetString(name);
@@ -107,6 +123,7 @@ namespace Lithnet.Ecma2Framework
             }
         }
 
+        /// <inheritdoc/>
         public long GetLong(string name, long defaultValue)
         {
             string value = this.GetString(name);
@@ -126,6 +143,7 @@ namespace Lithnet.Ecma2Framework
             }
         }
 
+        /// <inheritdoc/>
         public List<string> GetList(string name, string separator)
         {
             string value = this.GetString(name);
