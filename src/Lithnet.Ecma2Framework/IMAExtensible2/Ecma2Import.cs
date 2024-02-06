@@ -51,9 +51,10 @@ namespace Lithnet.Ecma2Framework.Internal
                     catch (Exception ex)
                     {
                         this.Logger.LogWarning(ex, "Could not deserialize watermark");
-                        this.context.IncomingWatermark = new ConcurrentDictionary<string, string>();
                     }
                 }
+
+                this.context.IncomingWatermark ??= new ConcurrentDictionary<string, string>();
 
                 var initializer = this.ServiceProvider.GetService<IContextInitializer>();
 
@@ -242,7 +243,9 @@ namespace Lithnet.Ecma2Framework.Internal
             }
             catch (NotImplementedException) { }
 
-            this.context.IncomingWatermark.TryGetValue(type.Name, out var inboundWatermark);
+            string inboundWatermark = null;
+
+            this.context.IncomingWatermark?.TryGetValue(type.Name, out inboundWatermark);
 
             if (this.context.InDelta && inboundWatermark == null)
             {
