@@ -4,9 +4,9 @@ using Microsoft.Extensions.DependencyInjection;
 namespace Lithnet.Ecma2Framework
 {
     /// <summary>
-    /// Defines the methods and properties that a bootstrapper must implement
+    /// Defines the methods and properties that a start up class must implement
     /// </summary>
-    public interface IEcmaBootstrapper
+    public interface IEcmaStartup
     {
         /// <summary>
         /// This method is called when the ECMA2 framework is initializing. Use this method to configure the configuration builder.

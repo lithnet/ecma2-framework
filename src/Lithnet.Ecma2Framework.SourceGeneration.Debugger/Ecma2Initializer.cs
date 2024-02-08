@@ -3,7 +3,7 @@ using Microsoft.Extensions.DependencyInjection;
 
 namespace Lithnet.Ecma2Framework.SourceGenDebugger
 {
-    internal class Ecma2Initializer : IEcmaBootstrapper
+    internal class Ecma2Initializer : IEcmaStartup
     {
         public void Configure(IConfigurationBuilder builder)
         {

@@ -6,10 +6,10 @@ namespace Lithnet.Ecma2Framework.Example
     [ConnectivityConfiguration]
     internal class ConnectivityOptions
     {
-        [StringParameter("Tenant URL")]
+        [StringParameter("API URL")]
         [Required]
         [Url]
         [DefaultValue("https://jsonplaceholder.typicode.com")]
-        public string TenantUrl { get; set; }
+        public string ApiUrl { get; set; }
     }
 }

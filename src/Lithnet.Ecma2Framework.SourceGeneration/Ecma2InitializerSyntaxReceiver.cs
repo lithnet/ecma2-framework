@@ -17,7 +17,7 @@ namespace Lithnet.Ecma2Framework
         private const string AttributeConfigPageRunStep = "Lithnet.Ecma2Framework.RunStepConfigurationAttribute";
         private const string AttributeConfigPageSchema = "Lithnet.Ecma2Framework.SchemaConfigurationAttribute";
 
-        private const string InterfaceIEcmaBootstrapper = "Lithnet.Ecma2Framework.IEcmaBootstrapper";
+        private const string InterfaceIEcmaStartup = "Lithnet.Ecma2Framework.IEcmaStartup";
         private const string InterfaceICapabilitiesProvider = "Lithnet.Ecma2Framework.ICapabilitiesProvider";
         private const string InterfaceIConfigParametersProvider = "Lithnet.Ecma2Framework.IConfigParametersProvider";
         private const string InterfaceIObjectExportProvider = "Lithnet.Ecma2Framework.IObjectExportProvider";
@@ -86,7 +86,7 @@ namespace Lithnet.Ecma2Framework
 
                     string fullyQualifiedName = declaredSymbol.ToDisplayString(fullTypeNameFormat);
 
-                    if (this.HasInterface(declaredSymbol, context, InterfaceIEcmaBootstrapper))
+                    if (this.HasInterface(declaredSymbol, context, InterfaceIEcmaStartup))
                     {
                         this.HasBootstrapper = true;
                         this.BootstrapperClassName = fullyQualifiedName;

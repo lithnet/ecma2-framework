@@ -19,11 +19,11 @@ namespace Lithnet.Ecma2Framework.Internal
         /// <summary>
         /// Initializes a new instance of the Ecma2Initializer class
         /// </summary>
-        /// <param name="bootstrapper">The user-created bootstrapper class</param>
+        /// <param name="startup">The user-created startup class</param>
         /// <param name="mappingProvider">The generated configuration registration provider</param>
-        public Ecma2Initializer(IEcmaBootstrapper bootstrapper, IConfigRegistrationProvider mappingProvider)
+        public Ecma2Initializer(IEcmaStartup startup, IConfigRegistrationProvider mappingProvider)
         {
-            this.Bootstrapper = bootstrapper;
+            this.Startup = startup;
             this.mappingProvider = mappingProvider;
         }
 
@@ -33,9 +33,9 @@ namespace Lithnet.Ecma2Framework.Internal
         public IServiceCollection Services { get; private set; }
 
         /// <summary>
-        /// Represents the user-provided bootstrapper class
+        /// Represents the user-provided startup class
         /// </summary>
-        public IEcmaBootstrapper Bootstrapper { get; }
+        public IEcmaStartup Startup { get; }
 
         /// <summary>
         /// Builds the service provider and configuration
@@ -56,13 +56,13 @@ namespace Lithnet.Ecma2Framework.Internal
 
                 this.configBuilder.Add(new EcmaConfigurationSource(maConfig, this.mappingProvider));
 
-                this.Bootstrapper.Configure(this.configBuilder);
+                this.Startup.Configure(this.configBuilder);
 
                 var configRoot = this.configBuilder.Build();
                 this.Services.AddSingleton<IConfiguration>(configRoot);
                 this.mappingProvider.RegisterOptions(this.Services, configRoot);
 
-                this.Bootstrapper.SetupServices(this.Services, maConfig);
+                this.Startup.SetupServices(this.Services, maConfig);
 
                 this.AddInternalServices(configRoot);
                 this.serviceProvider = this.Services.BuildServiceProvider();

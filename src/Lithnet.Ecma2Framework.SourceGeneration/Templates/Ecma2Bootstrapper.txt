@@ -10,8 +10,8 @@ namespace Lithnet.Ecma2Framework.Generated
         {
             if (initializer == null)
             {
-                var bootStrapper = new %CLASSNAME%();
-                initializer = new Ecma2Initializer(bootStrapper, new Ecma2ConfigRegistrationProvider());
+                var startup = new %CLASSNAME%();
+                initializer = new Ecma2Initializer(startup, new Ecma2ConfigRegistrationProvider());
             }
 
             return initializer;

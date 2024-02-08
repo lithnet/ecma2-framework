@@ -6,7 +6,7 @@
 	</PropertyGroup>
 
 	<ItemGroup>
-		<PackageReference Include="Lithnet.Ecma2Framework" Version="2.0.0-beta120" />
+		<PackageReference Include="Lithnet.Ecma2Framework" Version="2.0.40" />
 	</ItemGroup>
 
 	<ItemGroup>

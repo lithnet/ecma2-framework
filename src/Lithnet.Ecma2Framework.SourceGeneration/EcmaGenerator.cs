@@ -30,7 +30,7 @@ namespace Lithnet.Ecma2Framework
 
                 if (!receiver.HasBootstrapper || string.IsNullOrWhiteSpace(receiver.BootstrapperClassName))
                 {
-                    context.ReportDiagnostic(Diagnostic.Create(new DiagnosticDescriptor("ECMA2001", "Could not find the bootstrapper implementation", $"A bootstrapper class could not be found. Please generate a class that implements from IEcmaBootstrapper", "Ecma2Framework", DiagnosticSeverity.Error, true), Location.None));
+                    context.ReportDiagnostic(Diagnostic.Create(new DiagnosticDescriptor("ECMA2001", "Could not find the IEcmaStartup implementation", $"A startup class could not be found. Please generate a class that implements from IEcmaStartup", "Ecma2Framework", DiagnosticSeverity.Error, true), Location.None));
                     hasErrors = true;
                 }
 
