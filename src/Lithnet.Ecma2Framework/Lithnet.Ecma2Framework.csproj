@@ -7,7 +7,6 @@
 		<LangVersion>9</LangVersion>
 		<GeneratePackageOnBuild>true</GeneratePackageOnBuild>
 		<AppendTargetFrameworkToOutputPath>false</AppendTargetFrameworkToOutputPath>
-		<DebugType>full</DebugType>
 		<DebugSymbols>true</DebugSymbols>
 	</PropertyGroup>
 
