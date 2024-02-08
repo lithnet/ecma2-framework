@@ -7,7 +7,7 @@ using Microsoft.Extensions.Options;
 
 namespace Lithnet.Ecma2Framework.Example
 {
-    internal class Startup : IEcmaBootstrapper
+    internal class Startup : IEcmaStartup
     {
         public void Configure(IConfigurationBuilder builder)
         {

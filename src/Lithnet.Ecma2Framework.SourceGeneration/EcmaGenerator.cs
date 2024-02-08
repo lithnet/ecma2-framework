@@ -28,7 +28,7 @@ namespace Lithnet.Ecma2Framework
 
                 bool hasErrors = false;
 
-                if (!receiver.HasBootstrapper || string.IsNullOrWhiteSpace(receiver.BootstrapperClassName))
+                if (!receiver.HasStartupClass || string.IsNullOrWhiteSpace(receiver.StartupClassName))
                 {
                     context.ReportDiagnostic(Diagnostic.Create(new DiagnosticDescriptor("ECMA2001", "Could not find the IEcmaStartup implementation", $"A startup class could not be found. Please generate a class that implements from IEcmaStartup", "Ecma2Framework", DiagnosticSeverity.Error, true), Location.None));
                     hasErrors = true;
@@ -68,7 +68,7 @@ namespace Lithnet.Ecma2Framework
                     return;
                 }
 
-                var bootstrapperText = this.GetResource("Lithnet.Ecma2Framework.SourceGeneration.Templates.Ecma2Bootstrapper.txt").Replace("%CLASSNAME%", receiver.BootstrapperClassName);
+                var bootstrapperText = this.GetResource("Lithnet.Ecma2Framework.SourceGeneration.Templates.Ecma2Bootstrapper.txt").Replace("%CLASSNAME%", receiver.StartupClassName);
                 context.AddSource("Ecma2Bootstrapper.g.cs", SourceText.From(bootstrapperText, Encoding.UTF8));
                 context.AddSource("Ecma2ImportImplementation.g.cs", SourceText.From(this.GetResource("Lithnet.Ecma2Framework.SourceGeneration.Templates.Ecma2ImportImplementation.txt"), Encoding.UTF8));
                 context.AddSource("Ecma2ExportImplementation.g.cs", SourceText.From(this.GetResource("Lithnet.Ecma2Framework.SourceGeneration.Templates.Ecma2ExportImplementation.txt"), Encoding.UTF8));

@@ -52,9 +52,9 @@ namespace Lithnet.Ecma2Framework
 
         public List<Diagnostic> Diagnostics { get; } = new List<Diagnostic>();
 
-        public string BootstrapperClassName { get; set; }
+        public string StartupClassName { get; set; }
 
-        public bool HasBootstrapper { get; set; }
+        public bool HasStartupClass { get; set; }
 
         public bool HasCapabilityProvider { get; set; }
 
@@ -88,8 +88,8 @@ namespace Lithnet.Ecma2Framework
 
                     if (this.HasInterface(declaredSymbol, context, InterfaceIEcmaStartup))
                     {
-                        this.HasBootstrapper = true;
-                        this.BootstrapperClassName = fullyQualifiedName;
+                        this.HasStartupClass = true;
+                        this.StartupClassName = fullyQualifiedName;
                     }
                     else if (this.HasInterface(declaredSymbol, context, InterfaceICapabilitiesProvider))
                     {

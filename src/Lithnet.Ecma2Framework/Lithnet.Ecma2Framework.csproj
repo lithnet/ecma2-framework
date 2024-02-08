@@ -67,11 +67,6 @@
 	</ItemGroup>
 
 	<ItemGroup>
-		<None Include="build\Lithnet.Ecma2Framework.props" Pack="true" PackagePath="build\" />
-		<None Include="build\Lithnet.Ecma2Framework.targets" Pack="true" PackagePath="build\" />
-	</ItemGroup>
-
-	<ItemGroup>
 		<None Include="$(OutputPath)\Lithnet.Ecma2Framework.SourceGeneration.dll" Pack="true" PackagePath="analyzers/dotnet/cs" Visble="false" />
 	</ItemGroup>
 
