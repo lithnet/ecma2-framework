@@ -5,6 +5,9 @@ namespace Lithnet.Ecma2Framework.Example
 {
     internal class SchemaProvider : ISchemaProvider
     {
+        /// <summary>
+        /// Gets the management agent's schema
+        /// </summary>
         public Task<Schema> GetMmsSchemaAsync()
         {
             Schema mmsSchema = new Schema();
@@ -13,6 +16,9 @@ namespace Lithnet.Ecma2Framework.Example
             return Task.FromResult(mmsSchema);
         }
 
+        /// <summary>
+        /// Creates the schema for the user object
+        /// </summary>
         private SchemaType GetSchemaTypeUser()
         {
             SchemaType mmsType = SchemaType.Create("user", true);

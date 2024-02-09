@@ -92,7 +92,7 @@ namespace Lithnet.Ecma2Framework
                 builder.AppendLine($"{{ \"{mapping.Key}\", \"{mapping.Value}\"}},");
             }
 
-            var configMappingText = this.GetResource("Lithnet.Ecma2Framework.SourceGeneration.Templates.Ecma2ConfigParameterMapping.txt").Replace("%MAPPEDPROPERTIES%", builder.ToString());
+            var configMappingText = this.GetResource("Lithnet.Ecma2Framework.SourceGeneration.Templates.Ecma2ConfigRegistrationProvider.txt").Replace("%MAPPEDPROPERTIES%", builder.ToString());
 
             builder.Clear();
 
@@ -122,7 +122,7 @@ namespace Lithnet.Ecma2Framework
 
             configMappingText = configMappingText.Replace("%SERVICEREGISTRATIONS%", builder.ToString());
 
-            context.AddSource("Ecma2ConfigParameterMapping.g.cs", SourceText.From(configMappingText, Encoding.UTF8));
+            context.AddSource("Ecma2ConfigRegistrationProvider.g.cs", SourceText.From(configMappingText, Encoding.UTF8));
         }
 
         private void AddGeneratedConfigParametersSource(GeneratorExecutionContext context, Ecma2InitializerSyntaxReceiver receiver)

@@ -49,6 +49,7 @@ namespace Lithnet.Ecma2Framework.Internal
             if (this.serviceProvider == null)
             {
                 this.Services = new ServiceCollection();
+                this.Services.AddLogging();
                 this.configBuilder = new ConfigurationBuilder();
 
                 maConfig = new ConfigParameters(configParameters);
