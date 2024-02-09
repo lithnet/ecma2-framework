@@ -5,7 +5,6 @@ using System.Text.Json;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
-using Microsoft.Extensions.Options;
 using Microsoft.MetadirectoryServices;
 
 namespace Lithnet.Ecma2Framework.Example
@@ -14,13 +13,11 @@ namespace Lithnet.Ecma2Framework.Example
     {
         private readonly HttpClient client;
         private readonly ILogger<UserImportProvider> logger;
-        private readonly ConnectivityOptions connectivityOptions;
 
-        public UserImportProvider(HttpClient client, ILogger<UserImportProvider> logger, IOptions<ConnectivityOptions> connectivityOptions) : base(logger)
+        public UserImportProvider(HttpClient client, ILogger<UserImportProvider> logger) : base(logger)
         {
             this.client = client;
             this.logger = logger;
-            this.connectivityOptions = connectivityOptions.Value;
         }
 
         /// <summary>
