@@ -30,6 +30,7 @@
 		<EmbedUntrackedSources>true</EmbedUntrackedSources>
 		<Title>Lithnet ECMA2 Framework</Title>
 		<PackageProjectUrl>https://github.com/lithnet/ecma2-framework</PackageProjectUrl>
+		<GenerateDocumentationFile>True</GenerateDocumentationFile>
 	</PropertyGroup>
 
 	<PropertyGroup Condition="'$(TF_BUILD)' == 'true'">

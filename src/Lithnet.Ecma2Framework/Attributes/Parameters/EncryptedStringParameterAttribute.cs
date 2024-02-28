@@ -8,6 +8,10 @@ namespace Lithnet.Ecma2Framework
     [AttributeUsage(AttributeTargets.Property, AllowMultiple = false)]
     public class EncryptedStringParameterAttribute : DataParameterAttribute
     {
+        /// <summary>
+        /// Initializes a new instance of the EncryptedStringParameterAttribute class
+        /// </summary>
+        /// <param name="name">The name of the parameter, as shown to the user on the MIM configuration page</param>
         public EncryptedStringParameterAttribute(string name) : base(name)
         {
         }

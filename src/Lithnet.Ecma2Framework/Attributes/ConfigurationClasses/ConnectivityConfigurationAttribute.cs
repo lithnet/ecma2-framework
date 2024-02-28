@@ -8,9 +8,20 @@ namespace Lithnet.Ecma2Framework
     [AttributeUsage(AttributeTargets.Class, AllowMultiple = false)]
     public class ConnectivityConfigurationAttribute : Attribute
     {
-        public ConnectivityConfigurationAttribute(string name = "Ecma:Connectivity")
+        /// <summary>
+        /// Initializes a new instance of the ConnectivityConfigurationAttribute class
+        /// </summary>
+        public ConnectivityConfigurationAttribute() : this(null)
         {
-            this.Name = name;
+        }
+
+        /// <summary>
+        /// Initializes a new instance of the ConnectivityConfigurationAttribute class
+        /// </summary>
+        /// <param name="name">An optional name of the configuration section. This value defaults to Ecma:Connectivity</param>
+        public ConnectivityConfigurationAttribute(string name)
+        {
+            this.Name = name ?? "Ecma:Connectivity";
         }
 
         /// <summary>

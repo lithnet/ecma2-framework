@@ -8,9 +8,20 @@ namespace Lithnet.Ecma2Framework
     [AttributeUsage(AttributeTargets.Class, AllowMultiple = false)]
     public class SchemaConfigurationAttribute : Attribute
     {
-        public SchemaConfigurationAttribute(string name = "Ecma:Schema")
+        /// <summary>
+        /// Initializes a new instance of the SchemaConfigurationAttribute class
+        /// </summary>
+        public SchemaConfigurationAttribute() : this(null)
         {
-            this.Name = name;
+        }
+
+        /// <summary>
+        /// Initializes a new instance of the SchemaConfigurationAttribute class
+        /// </summary>
+        /// <param name="name">An optional name of the configuration section. This value defaults to Ecma:Schema</param>
+        public SchemaConfigurationAttribute(string name)
+        {
+            this.Name = name ?? "Ecma:Schema";
         }
 
         /// <summary>

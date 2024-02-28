@@ -8,9 +8,20 @@ namespace Lithnet.Ecma2Framework
     [AttributeUsage(AttributeTargets.Class, AllowMultiple = false)]
     public class CapabilitiesConfigurationAttribute : Attribute
     {
-        public CapabilitiesConfigurationAttribute(string name = "Ecma:Capabilities")
+        /// <summary>
+        /// Initializes a new instance of the CapabilitiesConfigurationAttribute class
+        /// </summary>
+        public CapabilitiesConfigurationAttribute() : this(null)
         {
-            this.Name = name;
+        }
+
+        /// <summary>
+        /// Initializes a new instance of the CapabilitiesConfigurationAttribute class
+        /// </summary>
+        /// <param name="name">An optional name of the configuration section. This value defaults to Ecma:Capabilities</param>
+        public CapabilitiesConfigurationAttribute(string name)
+        {
+            this.Name = name ?? "Ecma:Capabilities";
         }
 
         /// <summary>

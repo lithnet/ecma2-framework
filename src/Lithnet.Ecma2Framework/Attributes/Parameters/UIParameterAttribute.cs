@@ -8,8 +8,8 @@
         /// <summary>
         /// Creates a new instance of the UIParameterAttribute class
         /// </summary>
-        /// <param name="name">The name of the attribute</param>
-        public UIParameterAttribute(string name) : base(name)
+        /// <param name="name">The name of the parameter, as shown to the user on the MIM configuration page</param>
+        protected UIParameterAttribute(string name) : base(name)
         {
         }
     }

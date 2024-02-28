@@ -9,6 +9,10 @@ namespace Lithnet.Ecma2Framework
     [AttributeUsage(AttributeTargets.Property, AllowMultiple = false)]
     public class LabelParameterAttribute : UIParameterAttribute
     {
+        /// <summary>
+        /// Initializes a new instance of the LabelParameterAttribute class
+        /// </summary>
+        /// <param name="name">The name of the parameter, as shown to the user on the MIM configuration page</param>
         public LabelParameterAttribute(string name) : base(name)
         {
         }

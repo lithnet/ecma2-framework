@@ -8,6 +8,10 @@ namespace Lithnet.Ecma2Framework
     [AttributeUsage(AttributeTargets.Property, AllowMultiple = false)]
     public class MultilineTextboxParameterAttribute : DataParameterAttribute
     {
+        /// <summary>
+        /// Initializes a new instance of the MultilineTextboxParameterAttribute class
+        /// </summary>
+        /// <param name="name">The name of the parameter, as shown to the user on the MIM configuration page</param>
         public MultilineTextboxParameterAttribute(string name) : base(name)
         {
         }

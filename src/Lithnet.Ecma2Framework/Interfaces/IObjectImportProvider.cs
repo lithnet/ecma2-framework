@@ -28,6 +28,7 @@ namespace Lithnet.Ecma2Framework
         /// </summary>
         /// <param name="type">The type of object to import</param>
         /// <param name="csentryCollection">The collection of CSEntryChange objects to add the imported objects to</param>
+        /// <param name="incomingWatermark">The watermark value provided by the management agent after its last successful import</param>
         /// <param name="cancellationToken">A cancellation token</param>
         /// <returns>A task that represents the asynchronous operation</returns>
         Task GetCSEntryChangesAsync(SchemaType type, ICSEntryChangeCollection csentryCollection, string incomingWatermark, CancellationToken cancellationToken);

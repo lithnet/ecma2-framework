@@ -79,7 +79,8 @@ namespace Lithnet.Ecma2Framework
                 throw;
             }
         }
-
+        
+        /// <inheritdoc/>
         public abstract Task<string> GetOutboundWatermark(SchemaType type, CancellationToken cancellationToken);
 
         /// <summary>
@@ -346,8 +347,9 @@ namespace Lithnet.Ecma2Framework
         protected abstract Task<string> GetDNAsync(TObject item);
 
         /// <summary>
-        /// Gets the objects to be imported. 
+        /// Gets the objects to be imported.
         /// </summary>
+        /// <param name="watermark">The watermark value provided by the management agent after its last successful import</param>
         /// <param name="cancellationToken">A cancellation token</param>
         /// <returns>An enumerable of objects to be imported</returns>
         protected abstract IAsyncEnumerable<TObject> GetObjectsAsync(string watermark, CancellationToken cancellationToken);

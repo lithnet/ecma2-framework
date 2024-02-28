@@ -7,13 +7,17 @@ namespace Lithnet.Ecma2Framework
     /// </summary>
     public abstract class ParameterAttribute : Attribute
     {
-        public ParameterAttribute(string name)
+        /// <summary>
+        /// Initializes a new instance of the ParameterAttribute class
+        /// </summary>
+        /// <param name="name">The name of the parameter, as shown to the user on the MIM configuration page</param>
+        protected ParameterAttribute(string name)
         {
             this.Name = name;
         }
 
         /// <summary>
-        /// Gets the name of the configuration parameter
+        /// Gets the name of the parameter, as shown to the user on the MIM configuration page
         /// </summary>
         public string Name { get; }
     }

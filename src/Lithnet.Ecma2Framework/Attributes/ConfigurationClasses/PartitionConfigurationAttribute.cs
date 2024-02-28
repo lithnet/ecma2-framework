@@ -8,9 +8,20 @@ namespace Lithnet.Ecma2Framework
     [AttributeUsage(AttributeTargets.Class, AllowMultiple = false)]
     public class PartitionConfigurationAttribute : Attribute
     {
-        public PartitionConfigurationAttribute(string name = "Ecma:Partition")
+        /// <summary>
+        /// Initializes a new instance of the PartitionConfigurationAttribute class
+        /// </summary>
+        public PartitionConfigurationAttribute() : this(null)
         {
-            this.Name = name;
+        }
+
+        /// <summary>
+        /// Initializes a new instance of the PartitionConfigurationAttribute class
+        /// </summary>
+        /// <param name="name">An optional name of the configuration section. This value defaults to Ecma:Partition</param>
+        public PartitionConfigurationAttribute(string name)
+        {
+            this.Name = name ?? "Ecma:Partition";
         }
 
         /// <summary>

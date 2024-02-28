@@ -11,7 +11,7 @@ namespace Lithnet.Ecma2Framework
         /// <summary>
         /// Creates a new instance of the StringParameterAttribute class
         /// </summary>
-        /// <param name="name">The name of the configuration parameter. Configuration parameter names must be unique</param>
+        /// <param name="name">The name of the parameter, as shown to the user on the MIM configuration page</param>
         public StringParameterAttribute(string name) : base(name)
         {
         }

@@ -5,7 +5,11 @@
     /// </summary>
     public abstract class DataParameterAttribute : ParameterAttribute
     {
-        public DataParameterAttribute(string name) : base(name)
+        /// <summary>
+        /// Initializes a new instance of the DataParameterAttribute class
+        /// </summary>
+        /// <param name="name">The name of the parameter, as shown to the user on the MIM configuration page</param>
+        protected DataParameterAttribute(string name) : base(name)
         {
         }
     }

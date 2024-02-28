@@ -8,9 +8,20 @@ namespace Lithnet.Ecma2Framework
     [AttributeUsage(AttributeTargets.Class, AllowMultiple = false)]
     public class GlobalConfigurationAttribute : Attribute
     {
-        public GlobalConfigurationAttribute(string name = "Ecma:Global")
+        /// <summary>
+        /// Initializes a new instance of the GlobalConfigurationAttribute class
+        /// </summary>
+        public GlobalConfigurationAttribute() : this(null)
         {
-            this.Name = name;
+        }
+
+        /// <summary>
+        /// Initializes a new instance of the GlobalConfigurationAttribute class
+        /// </summary>
+        /// <param name="name">An optional name of the configuration section. This value defaults to Ecma:Global</param>
+        public GlobalConfigurationAttribute(string name)
+        {
+            this.Name = name ??  "Ecma:Global";
         }
 
         /// <summary>
