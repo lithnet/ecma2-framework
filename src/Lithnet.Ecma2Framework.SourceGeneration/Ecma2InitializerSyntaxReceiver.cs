@@ -149,7 +149,7 @@ namespace Lithnet.Ecma2Framework
 
                         configClass.ClassSymbol = declaredSymbol;
                         configClass.ConfigAttribute = attribute;
-                        configClass.SectionName = attribute.ConstructorArguments[0].Value?.ToString();
+                        configClass.SectionName = attribute.ConstructorArguments.Any() ? attribute.ConstructorArguments[0].Value?.ToString() : null;
                         configClass.ClassName = declaredSymbol.ToDisplayString(fullTypeNameFormat);
                         if (string.IsNullOrWhiteSpace(configClass.SectionName))
                         {

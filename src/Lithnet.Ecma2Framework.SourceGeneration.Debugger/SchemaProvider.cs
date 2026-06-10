@@ -2,6 +2,7 @@
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
+using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.MetadirectoryServices;
 
@@ -33,6 +34,16 @@ namespace Lithnet.Ecma2Framework.SourceGeneration.Debugger
         }
 
         public Task GetCSEntryChangesAsync(SchemaType type)
+        {
+            throw new NotImplementedException();
+        }
+
+        public Task GetCSEntryChangesAsync(SchemaType type, ICSEntryChangeCollection csentryCollection, string incomingWatermark, CancellationToken cancellationToken)
+        {
+            throw new NotImplementedException();
+        }
+
+        public Task<string> GetOutboundWatermark(SchemaType type, CancellationToken cancellationToken)
         {
             throw new NotImplementedException();
         }
