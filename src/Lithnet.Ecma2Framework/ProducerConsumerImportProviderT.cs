@@ -98,7 +98,11 @@ namespace Lithnet.Ecma2Framework
             }
             catch (NotImplementedException) { }
 
-            await items.ForEachAsync(t => target.Post(t), cancellationToken);
+            await foreach (var t in items.WithCancellation(cancellationToken))
+            {
+                target.Post(t);
+            }
+
             target.Complete();
 
             try
