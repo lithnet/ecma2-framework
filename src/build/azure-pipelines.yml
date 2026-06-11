@@ -1,8 +1,15 @@
 pool:
-  vmImage: 'windows-latest'
+  vmImage: 'ubuntu-latest'
+
+resources:
+  repositories:
+  - repository: release_tools
+    type: git
+    name: release-tools/release-tools
+    ref: refs/heads/master
 
 variables:
-  - name: buildPlatform 
+  - name: buildPlatform
     value: 'Any CPU'
   - name: buildConfiguration
     value: 'Release'
@@ -20,8 +27,9 @@ variables:
     value: $(build.version.major).$(build.version.minor).$(build.version.revision)
   - name: build.date
     value: $[format('{0:yyyy}-{0:MM}-{0:dd}T{0:HH}:{0:mm}:{0:ss}', pipeline.startTime)]
-  - group: Azure KeyVault Code Signing
-  
+  - name: azure.subscription
+    value: 'ProductionServices'
+
 name: $(build.version.major).$(build.version.minor).$(build.version.revision)$(build.version.suffix)
 trigger: none
 
@@ -33,6 +41,8 @@ stages:
     - job: "build_provider_job"
       displayName: Build project
       steps:
+      - template: templates/checkout.yaml@release_tools
+
       - task: DotNetCoreCLI@2
         displayName: dotnet build
         inputs:
@@ -40,41 +50,13 @@ stages:
           arguments: '-c $(buildConfiguration) -p:Version=$(build.version) -p:GeneratePackageOnBuild=false'
           projects: 'src/Lithnet.Ecma2Framework/Lithnet.Ecma2Framework.csproj'
 
-      - task: DotNetCoreCLI@2
-        inputs:
-          command: 'custom'
-          custom: 'tool'
-          arguments: 'update --global azuresigntool'
-        displayName: Install AzureSignTool
-
-      - task: PowerShell@2
-        displayName: 'Sign files with AzureSignTool'
-        inputs:
-          targetType: 'inline'
-          script: |
-            $files = @()
-            $files += (Get-ChildItem -Recurse -Path "$(Build.SourcesDirectory)\Lithnet*.dll").FullName
-
-            write-host "Signing $($files.Length) files:"
-            write-output $files
-
-            $cmdargs = @(
-              "sign",
-              "-d", "Lithnet ECMA2 Framework",
-              "-kvu", "$(akv.url)",
-              "-kvi", "$(akv.applicationID)",
-              "-kvs", "$(akv.secret)",
-              "-kvt", "$(akv.tenantId)",
-              "-kvc", "$(akv.certificateName)",
-              "-tr", "http://timestamp.digicert.com",
-              "-td", "sha256"
-            )
-
-            $cmdargs += $files
-        
-            & AzureSignTool $cmdargs
-          failOnStderr: true
-          showWarnings: true
+      - template: templates/codesign.yaml@release_tools
+        parameters:
+          path:
+          - $(Build.SourcesDirectory)/**/Lithnet.Ecma2Framework*.dll
+          environment: 'prod'
+          azureSubscription: $(azure.subscription)
+          description: 'Lithnet ECMA2 Framework'
 
       - task: DotNetCoreCLI@2
         displayName: dotnet pack
@@ -87,70 +69,21 @@ stages:
           versioningScheme: 'byEnvVar'
           versionEnvVar: 'build.version'
 
-      - task: DotNetCoreCLI@2
-        inputs:
-          command: 'custom'
-          custom: 'tool'
-          arguments: 'update --global NuGetKeyVaultSignTool'
-        displayName: Install NugetKeyVaultSignTool
+      - template: templates/codesign.yaml@release_tools
+        parameters:
+          path:
+          - $(Build.ArtifactStagingDirectory)/cp/*.nupkg
+          - $(Build.ArtifactStagingDirectory)/cp/*.snupkg
+          environment: 'prod'
+          azureSubscription: $(azure.subscription)
+          description: 'Lithnet ECMA2 Framework'
 
-      - task: PowerShell@2
-        displayName: 'Sign Nuget package'
-        inputs:
-          targetType: 'inline'
-          script: |
-            $cmdargs = @(
-              "sign", "$(Build.ArtifactStagingDirectory)\cp\Lithnet.Ecma2Framework.$(build.version).nupkg"
-              "-fd", "sha256",
-              "-kvu", "$(akv.url)",
-              "-kvi", "$(akv.applicationID)",
-              "-kvs", "$(akv.secret)",
-              "-kvt", "$(akv.tenantId)",
-              "-kvc", "$(akv.certificateName)",
-              "-tr", "http://timestamp.digicert.com",
-              "-td", "sha256"
-            )
-        
-            & NuGetKeyVaultSignTool $cmdargs
-          failOnStderr: true
-          showWarnings: true
-
-      - task: PowerShell@2
-        displayName: 'Sign Nuget symbols package'
-        inputs:
-          targetType: 'inline'
-          script: |
-            $cmdargs = @(
-              "sign", "$(Build.ArtifactStagingDirectory)\cp\Lithnet.Ecma2Framework.$(build.version).snupkg"
-              "-fd", "sha256",
-              "-kvu", "$(akv.url)",
-              "-kvi", "$(akv.applicationID)",
-              "-kvs", "$(akv.secret)",
-              "-kvt", "$(akv.tenantId)",
-              "-kvc", "$(akv.certificateName)",
-              "-tr", "http://timestamp.digicert.com",
-              "-td", "sha256"
-            )
-        
-            & NuGetKeyVaultSignTool $cmdargs
-          failOnStderr: true
-          showWarnings: true
-
-      - task: DotNetCoreCLI@2
-        displayName: Publish package to internal feed
-        inputs:
-          command: 'push'
-          packagesToPush: '$(Build.ArtifactStagingDirectory)/cp/*.nupkg'
-          nuGetFeedType: 'internal'
-          publishVstsFeed: '91a552bc-359d-4f28-bdbd-f36f71cfdf81'
-
-      - task: DotNetCoreCLI@2
-        displayName: Publish symbols to internal feed
-        inputs:
-          command: 'push'
-          packagesToPush: '$(Build.ArtifactStagingDirectory)/cp/*.snupkg'
-          nuGetFeedType: 'internal'
-          publishVstsFeed: '91a552bc-359d-4f28-bdbd-f36f71cfdf81'
+      - template: templates/publish-nuget.yaml@release_tools
+        parameters:
+          nugetPackagePath: '$(Build.ArtifactStagingDirectory)/cp/*.nupkg'
+          symbolPackagePath: '$(Build.ArtifactStagingDirectory)/cp/*.snupkg'
+          publishInternal: true
+          publishExternal: false
 
       - task: PublishPipelineArtifact@1
         displayName: Publish nuget artifact
@@ -165,23 +98,19 @@ stages:
   jobs:
       - deployment: 'PublishPackages'
         environment: 'Public nuget feed'
-        displayName: Publish packages to public nuget feed 
+        displayName: Publish packages to public nuget feed
         pool:
-          vmImage: windows-2022 
+          vmImage: ubuntu-latest
         strategy:
           runOnce:
-            deploy:            
+            deploy:
               steps:
               - checkout: none
               - download: current
                 artifact: cp
-              - task: NuGetToolInstaller@1
-                inputs:
-                  versionSpec: '>=4.9.0-0'
-              - task: NuGetCommand@2
-                displayName: 'Publish nuget package to public feed'
-                inputs:
-                  command: 'push'
-                  packagesToPush: '$(Pipeline.Workspace)/cp/*.nupkg'
-                  nuGetFeedType: 'external'
-                  publishFeedCredentials: 'WindowsECMA2FrameworkNuget'
+              - template: templates/publish-nuget.yaml@release_tools
+                parameters:
+                  nugetPackagePath: '$(Pipeline.Workspace)/cp/*.nupkg'
+                  publishInternal: false
+                  publishExternal: true
+                  externalFeedCredentials: 'WindowsECMA2FrameworkNuget'
