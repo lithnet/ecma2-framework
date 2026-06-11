@@ -11,15 +11,8 @@ namespace Lithnet.Ecma2Framework
         /// <summary>
         /// Initializes a new instance of the ConnectivityConfigurationAttribute class
         /// </summary>
-        public ConnectivityConfigurationAttribute() : this(null)
-        {
-        }
-
-        /// <summary>
-        /// Initializes a new instance of the ConnectivityConfigurationAttribute class
-        /// </summary>
         /// <param name="name">An optional name of the configuration section. This value defaults to Ecma:Connectivity</param>
-        public ConnectivityConfigurationAttribute(string name)
+        public ConnectivityConfigurationAttribute(string name = "Ecma:Connectivity")
         {
             this.Name = name ?? "Ecma:Connectivity";
         }

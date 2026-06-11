@@ -11,17 +11,10 @@ namespace Lithnet.Ecma2Framework
         /// <summary>
         /// Initializes a new instance of the GlobalConfigurationAttribute class
         /// </summary>
-        public GlobalConfigurationAttribute() : this(null)
-        {
-        }
-
-        /// <summary>
-        /// Initializes a new instance of the GlobalConfigurationAttribute class
-        /// </summary>
         /// <param name="name">An optional name of the configuration section. This value defaults to Ecma:Global</param>
-        public GlobalConfigurationAttribute(string name)
+        public GlobalConfigurationAttribute(string name = "Ecma:Global")
         {
-            this.Name = name ??  "Ecma:Global";
+            this.Name = name ?? "Ecma:Global";
         }
 
         /// <summary>

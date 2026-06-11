@@ -11,15 +11,8 @@ namespace Lithnet.Ecma2Framework
         /// <summary>
         /// Initializes a new instance of the RunStepConfigurationAttribute class
         /// </summary>
-        public RunStepConfigurationAttribute() : this(null)
-        {
-        }
-
-        /// <summary>
-        /// Initializes a new instance of the RunStepConfigurationAttribute class
-        /// </summary>
         /// <param name="name">An optional name of the configuration section. This value defaults to Ecma:RunStep</param>
-        public RunStepConfigurationAttribute(string name)
+        public RunStepConfigurationAttribute(string name = "Ecma:RunStep")
         {
             this.Name = name ?? "Ecma:RunStep";
         }

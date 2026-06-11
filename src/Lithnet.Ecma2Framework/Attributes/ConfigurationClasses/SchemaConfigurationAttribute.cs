@@ -11,15 +11,8 @@ namespace Lithnet.Ecma2Framework
         /// <summary>
         /// Initializes a new instance of the SchemaConfigurationAttribute class
         /// </summary>
-        public SchemaConfigurationAttribute() : this(null)
-        {
-        }
-
-        /// <summary>
-        /// Initializes a new instance of the SchemaConfigurationAttribute class
-        /// </summary>
         /// <param name="name">An optional name of the configuration section. This value defaults to Ecma:Schema</param>
-        public SchemaConfigurationAttribute(string name)
+        public SchemaConfigurationAttribute(string name = "Ecma:Schema")
         {
             this.Name = name ?? "Ecma:Schema";
         }

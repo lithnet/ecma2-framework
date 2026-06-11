@@ -86,34 +86,54 @@ namespace Lithnet.Ecma2Framework
 
                     string fullyQualifiedName = declaredSymbol.ToDisplayString(fullTypeNameFormat);
 
+                    // Each interface is checked independently. A single class is permitted to implement
+                    // more than one framework interface (for example a startup class that is also the
+                    // capabilities provider, or a provider that handles both import and export), so these
+                    // must not be chained with 'else if' or the second and subsequent roles are missed.
                     if (this.HasInterface(declaredSymbol, context, InterfaceIEcmaStartup))
                     {
+                        if (this.HasStartupClass)
+                        {
+                            Location startupLocation = declaredSymbol.Locations.Length > 0 ? declaredSymbol.Locations[0] : Location.None;
+                            this.Diagnostics.Add(Diagnostic.Create(new DiagnosticDescriptor("ECMA2010", "Multiple startup classes were found", $"More than one class implementing IEcmaStartup was found ('{this.StartupClassName}' and '{fullyQualifiedName}'). Only a single startup class is permitted.", "Ecma2Framework", DiagnosticSeverity.Error, true), startupLocation));
+                        }
+
                         this.HasStartupClass = true;
                         this.StartupClassName = fullyQualifiedName;
                     }
-                    else if (this.HasInterface(declaredSymbol, context, InterfaceICapabilitiesProvider))
+
+                    if (this.HasInterface(declaredSymbol, context, InterfaceICapabilitiesProvider))
                     {
                         this.HasCapabilityProvider = true;
                     }
-                    else if (this.HasInterface(declaredSymbol, context, InterfaceIConfigParametersProvider))
+
+                    if (this.HasInterface(declaredSymbol, context, InterfaceIConfigParametersProvider))
                     {
                         this.HasConfigProvider = true;
                     }
-                    else if (this.HasInterface(declaredSymbol, context, InterfaceIObjectExportProvider))
+
+                    if (this.HasInterface(declaredSymbol, context, InterfaceIObjectExportProvider))
                     {
                         this.HasObjectExportProvider = true;
                     }
-                    else if (this.HasInterface(declaredSymbol, context, InterfaceIObjectImportProvider))
+
+                    if (this.HasInterface(declaredSymbol, context, InterfaceIObjectImportProvider))
                     {
                         this.HasObjectImportProvider = true;
                     }
-                    else if (this.HasInterface(declaredSymbol, context, InterfaceISchemaProvider))
+
+                    if (this.HasInterface(declaredSymbol, context, InterfaceISchemaProvider))
                     {
                         this.HasSchemaProvider = true;
                     }
 
                     foreach (var attribute in declaredSymbol.GetAttributes())
                     {
+                        if (attribute.AttributeClass == null)
+                        {
+                            continue;
+                        }
+
                         string attributeName = attribute.AttributeClass.ToDisplayString(fullTypeNameFormat);
                         DiscoveredConfigClass configClass = new DiscoveredConfigClass();
 
@@ -149,10 +169,12 @@ namespace Lithnet.Ecma2Framework
 
                         configClass.ClassSymbol = declaredSymbol;
                         configClass.ConfigAttribute = attribute;
-                        configClass.SectionName = attribute.ConstructorArguments.Any() ? attribute.ConstructorArguments[0].Value?.ToString() : null;
+                        configClass.SectionName = attribute.ConstructorArguments.Length > 0 ? attribute.ConstructorArguments[0].Value?.ToString() : null;
                         configClass.ClassName = declaredSymbol.ToDisplayString(fullTypeNameFormat);
                         if (string.IsNullOrWhiteSpace(configClass.SectionName))
                         {
+                            Location location = declaredSymbol.Locations.Length > 0 ? declaredSymbol.Locations[0] : Location.None;
+                            this.Diagnostics.Add(Diagnostic.Create(new DiagnosticDescriptor("ECMA2008", "The configuration section name could not be determined", $"The class '{configClass.ClassName}' is decorated with [{attribute.AttributeClass.Name}], but the configuration section name could not be read at compile time, so the page was not generated. This happens when the attribute is applied using a parameterless constructor overload, because a source generator reads constructor arguments from metadata and a parameterless overload supplies none. Define the section name as a constructor parameter with a default value (e.g. 'public {attribute.AttributeClass.Name}(string name = \"Ecma:Section\")'), or apply the attribute with an explicit name such as [{attribute.AttributeClass.Name.Replace("Attribute", "")}(\"Ecma:Section\")].", "Ecma2Framework", DiagnosticSeverity.Error, true), location));
                             continue;
                         }
 
@@ -171,16 +193,16 @@ namespace Lithnet.Ecma2Framework
         {
             this.HasConfigAttributes = true;
 
-            configClass.ServicesToRegister.Add($"services.Configure<{configClass.ClassName}>(configuration.GetSection(\"{configClass.SectionName}\"));");
+            configClass.ServicesToRegister.Add($"services.Configure<{configClass.ClassName}>(configuration.GetSection({ToLiteral(configClass.SectionName)}));");
 
             foreach (var property in configClass.ClassSymbol.GetMembers().OfType<IPropertySymbol>())
             {
-                if (property.GetAttributes().Any(t => t.AttributeClass.ToDisplayString(fullTypeNameFormat) == AttributeConfigParamDivider))
+                if (property.GetAttributes().Any(t => t.AttributeClass?.ToDisplayString(fullTypeNameFormat) == AttributeConfigParamDivider))
                 {
                     configClass.ParametersToAdd.Add(this.CreateDividerParameterEntry());
                 }
 
-                var labelAttribute = property.GetAttributes().FirstOrDefault(t => t.AttributeClass.ToDisplayString(fullTypeNameFormat) == AttributeConfigParamLabel);
+                var labelAttribute = property.GetAttributes().FirstOrDefault(t => t.AttributeClass?.ToDisplayString(fullTypeNameFormat) == AttributeConfigParamLabel);
                 if (labelAttribute != null)
                 {
                     var mmsName = labelAttribute.ConstructorArguments[0].Value?.ToString();
@@ -196,6 +218,11 @@ namespace Lithnet.Ecma2Framework
 
         private void VisitPropertyAttribute(DiscoveredConfigClass configClass, IPropertySymbol property, AttributeData propertyAttribute)
         {
+            if (propertyAttribute.AttributeClass == null)
+            {
+                return;
+            }
+
             string propertyAttributeName = propertyAttribute.AttributeClass.ToDisplayString(fullTypeNameFormat);
 
             if (propertyAttributeName != AttributeConfigParamString &&
@@ -262,67 +289,96 @@ namespace Lithnet.Ecma2Framework
 
         private string CreateLabelParameterEntry(string name)
         {
-            return $"newDefinitions.Add(ConfigParameterDefinition.CreateLabelParameter(\"{name}\"));";
+            return $"newDefinitions.Add(ConfigParameterDefinition.CreateLabelParameter({ToLiteral(name)}));";
         }
 
         private string CreateDropdownParameterEntry(IPropertySymbol property, AttributeData attribute, string name)
         {
             string defaultValue = GetDefaultValue<string>(property, null);
-            defaultValue = defaultValue == null ? "string.Empty" : $"\"{defaultValue}\"";
+            defaultValue = defaultValue == null ? "string.Empty" : ToLiteral(defaultValue);
 
             string extensible = (attribute.ConstructorArguments[1].Value as bool? ?? false).ToString().ToLowerInvariant();
-            string items = $"new string [] {{{string.Join(", ", (attribute.ConstructorArguments[2].Values.Select(u => u.Value)).Select(t => $"\"{t}\""))}}}";
 
-            return $"newDefinitions.Add(ConfigParameterDefinition.CreateDropDownParameter(\"{name}\", {items}, {extensible}, {defaultValue}));";
+            TypedConstant displayedValues = attribute.ConstructorArguments[2];
+            if (displayedValues.IsNull || displayedValues.Values.IsDefaultOrEmpty)
+            {
+                Location location = property.Locations.Length > 0 ? property.Locations[0] : Location.None;
+                this.Diagnostics.Add(Diagnostic.Create(new DiagnosticDescriptor("ECMA2009", "A dropdown parameter requires a list of displayed values", $"The dropdown parameter '{name}' on property '{property.Name}' does not specify any values to display. Provide a non-empty array of values, for example [DropdownParameter(\"{name}\", false, new string[] {{ \"Value1\", \"Value2\" }})].", "Ecma2Framework", DiagnosticSeverity.Error, true), location));
+                return null;
+            }
+
+            string items = $"new string [] {{{string.Join(", ", displayedValues.Values.Select(t => ToLiteral(t.Value?.ToString())))}}}";
+
+            return $"newDefinitions.Add(ConfigParameterDefinition.CreateDropDownParameter({ToLiteral(name)}, {items}, {extensible}, {defaultValue}));";
         }
 
         private string CreateFileParameterEntry(IPropertySymbol property, string name)
         {
             string defaultValue = GetDefaultValue<string>(property, null);
-            defaultValue = defaultValue == null ? "string.Empty" : $"\"{defaultValue}\"";
+            defaultValue = defaultValue == null ? "string.Empty" : ToLiteral(defaultValue);
 
-            return $"newDefinitions.Add(ConfigParameterDefinition.CreateFileParameter(\"{name}\", {defaultValue}));";
+            return $"newDefinitions.Add(ConfigParameterDefinition.CreateFileParameter({ToLiteral(name)}, {defaultValue}));";
         }
 
         private string CreateCheckboxParameterEntry(IPropertySymbol property, string name)
         {
             string defaultValue = GetDefaultValue(property, false).ToString().ToLowerInvariant();
-            return $"newDefinitions.Add(ConfigParameterDefinition.CreateCheckBoxParameter(\"{name}\", {defaultValue}));";
+            return $"newDefinitions.Add(ConfigParameterDefinition.CreateCheckBoxParameter({ToLiteral(name)}, {defaultValue}));";
         }
 
         private string CreateMultilineTextParameterEntry(IPropertySymbol property, string name)
         {
             string defaultValue = GetDefaultValue<string>(property, null);
-            defaultValue = defaultValue == null ? "string.Empty" : $"\"{defaultValue}\"";
+            defaultValue = defaultValue == null ? "string.Empty" : ToLiteral(defaultValue);
 
-            return $"newDefinitions.Add(ConfigParameterDefinition.CreateTextParameter(\"{name}\", {defaultValue}));";
+            return $"newDefinitions.Add(ConfigParameterDefinition.CreateTextParameter({ToLiteral(name)}, {defaultValue}));";
         }
 
         private string CreateStringParameterEntry(IPropertySymbol property, string name)
         {
             string defaultValue = GetDefaultValue<string>(property, null);
-            defaultValue = defaultValue == null ? "string.Empty" : $"\"{defaultValue}\"";
+            defaultValue = defaultValue == null ? "string.Empty" : ToLiteral(defaultValue);
 
-            return $"newDefinitions.Add(ConfigParameterDefinition.CreateStringParameter(\"{name}\", string.Empty, {defaultValue}));";
+            return $"newDefinitions.Add(ConfigParameterDefinition.CreateStringParameter({ToLiteral(name)}, string.Empty, {defaultValue}));";
         }
 
         private string CreateEncryptedStringParameterEntry(IPropertySymbol property, string name)
         {
             string defaultValue = GetDefaultValue<string>(property, null);
-            defaultValue = defaultValue == null ? "string.Empty" : $"\"{defaultValue}\"";
-            return $"newDefinitions.Add(ConfigParameterDefinition.CreateEncryptedStringParameter(\"{name}\", string.Empty, {defaultValue}));";
+            defaultValue = defaultValue == null ? "string.Empty" : ToLiteral(defaultValue);
+            return $"newDefinitions.Add(ConfigParameterDefinition.CreateEncryptedStringParameter({ToLiteral(name)}, string.Empty, {defaultValue}));";
+        }
+
+        /// <summary>
+        /// Converts a runtime string value into a correctly-escaped C# string literal (including the surrounding
+        /// quotes) for safe embedding in generated source. Without this, values containing backslashes (for example
+        /// Windows paths), double quotes, or newlines would either break the generated code or be silently corrupted
+        /// by the C# escape sequence rules.
+        /// </summary>
+        private static string ToLiteral(string value)
+        {
+            return Microsoft.CodeAnalysis.CSharp.SymbolDisplay.FormatLiteral(value ?? string.Empty, true);
         }
 
         private static T GetDefaultValue<T>(IPropertySymbol property, T defaultValue)
         {
-            var defaultValueProperty = property.GetAttributes().FirstOrDefault(t => t.AttributeClass.ToDisplayString(fullTypeNameFormat) == AttributeAnnotationsDefaultValue);
+            var defaultValueProperty = property.GetAttributes().FirstOrDefault(t => t.AttributeClass?.ToDisplayString(fullTypeNameFormat) == AttributeAnnotationsDefaultValue);
 
-            if (defaultValueProperty == null)
+            if (defaultValueProperty == null || defaultValueProperty.ConstructorArguments.Length == 0)
             {
                 return defaultValue;
             }
 
-            var v = defaultValueProperty.ConstructorArguments[0].Value?.ToString();
+            // The DefaultValueAttribute(Type, string) overload stores the textual value as the second
+            // constructor argument, with the target type as the first. For every other overload the value
+            // is the first (and only) argument.
+            TypedConstant valueArgument = defaultValueProperty.ConstructorArguments[0];
+            if (defaultValueProperty.ConstructorArguments.Length >= 2 && valueArgument.Kind == TypedConstantKind.Type)
+            {
+                valueArgument = defaultValueProperty.ConstructorArguments[1];
+            }
+
+            var v = valueArgument.Value?.ToString();
             if (v != null)
             {
                 if (typeof(T) == typeof(bool))

@@ -11,15 +11,8 @@ namespace Lithnet.Ecma2Framework
         /// <summary>
         /// Initializes a new instance of the CapabilitiesConfigurationAttribute class
         /// </summary>
-        public CapabilitiesConfigurationAttribute() : this(null)
-        {
-        }
-
-        /// <summary>
-        /// Initializes a new instance of the CapabilitiesConfigurationAttribute class
-        /// </summary>
         /// <param name="name">An optional name of the configuration section. This value defaults to Ecma:Capabilities</param>
-        public CapabilitiesConfigurationAttribute(string name)
+        public CapabilitiesConfigurationAttribute(string name = "Ecma:Capabilities")
         {
             this.Name = name ?? "Ecma:Capabilities";
         }

@@ -89,7 +89,7 @@ namespace Lithnet.Ecma2Framework
             StringBuilder builder = new StringBuilder();
             foreach (var mapping in receiver.MmsNameToKeyMapping)
             {
-                builder.AppendLine($"{{ \"{mapping.Key}\", \"{mapping.Value}\"}},");
+                builder.AppendLine($"{{ {ToLiteral(mapping.Key)}, {ToLiteral(mapping.Value)}}},");
             }
 
             var configMappingText = this.GetResource("Lithnet.Ecma2Framework.SourceGeneration.Templates.Ecma2ConfigRegistrationProvider.txt").Replace("%MAPPEDPROPERTIES%", builder.ToString());
@@ -98,7 +98,7 @@ namespace Lithnet.Ecma2Framework
 
             foreach (var mapping in receiver.MmsNameToTypeMapping)
             {
-                builder.AppendLine($"{{ \"{mapping.Key}\", \"{mapping.Value}\"}},");
+                builder.AppendLine($"{{ {ToLiteral(mapping.Key)}, {ToLiteral(mapping.Value)}}},");
             }
 
             configMappingText = configMappingText.Replace("%TYPEMAPPINGS%", builder.ToString());
@@ -178,6 +178,11 @@ namespace Lithnet.Ecma2Framework
             }
 
             return builder.ToString();
+        }
+
+        private static string ToLiteral(string value)
+        {
+            return Microsoft.CodeAnalysis.CSharp.SymbolDisplay.FormatLiteral(value ?? string.Empty, true);
         }
 
         private string GetResource(string resourceName)
