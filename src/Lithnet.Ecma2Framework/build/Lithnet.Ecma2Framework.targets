@@ -321,7 +321,7 @@
 		     escaped-quote harmless (Host.proj re-normalizes the value with EnsureTrailingSlash anyway). The
 		     packaged args therefore precede it. The build target is the consumer-tree COPY of Host.proj in
 		     packaged mode (see the discovery note above) and the in-place original in-repo. -->
-		<Exec Command="dotnet build &quot;$(Ecma2HostBuildProject)&quot; -c $(Configuration) -restore -r $(Ecma2WorkerRuntimeIdentifier) -p:Ecma2InnerBuild=true -p:Ecma2HostExeName=$(Ecma2HostExeName) -p:Ecma2HostTargetFramework=$(Ecma2HostTargetFramework) -p:Ecma2ConsumerAssemblyName=$(AssemblyName) -p:Ecma2ConsumerProject=&quot;$(MSBuildProjectFullPath)&quot; -p:Ecma2ManagementAgentName=$(Ecma2ShimAssemblyName) -p:Ecma2HostMmsPath=&quot;$(Ecma2HostMmsPath)&quot; $(Ecma2HostPackagedArgs) -p:Ecma2HostOutputRoot=&quot;$(Ecma2HostOutputRoot)&quot;" />
+		<Exec Command="dotnet build &quot;$(Ecma2HostBuildProject)&quot; -c $(Configuration) -restore -p:Version=&quot;$(Version)&quot; -r $(Ecma2WorkerRuntimeIdentifier) -p:Ecma2InnerBuild=true -p:Ecma2HostExeName=$(Ecma2HostExeName) -p:Ecma2HostTargetFramework=$(Ecma2HostTargetFramework) -p:Ecma2ConsumerAssemblyName=$(AssemblyName) -p:Ecma2ConsumerProject=&quot;$(MSBuildProjectFullPath)&quot; -p:Ecma2ManagementAgentName=$(Ecma2ShimAssemblyName) -p:Ecma2HostMmsPath=&quot;$(Ecma2HostMmsPath)&quot; $(Ecma2HostPackagedArgs) -p:Ecma2HostOutputRoot=&quot;$(Ecma2HostOutputRoot)&quot;" />
 
 		<PropertyGroup>
 			<Ecma2HostBinDir>$([MSBuild]::EnsureTrailingSlash('$(Ecma2HostOutputRoot)'))bin\$(Configuration)\$(Ecma2HostTargetFramework)\</Ecma2HostBinDir>
@@ -400,7 +400,7 @@
 			is a fresh process. The isolated Ecma2ShimOutputRoot keeps the net48 shim's obj/bin from colliding
 			with the consumer's net8 output. Paths are quoted to tolerate spaces.
 		-->
-		<Exec Command="dotnet build &quot;$(Ecma2ShimProject)&quot; -c $(Configuration) -restore -p:Ecma2ManagementAgentName=$(Ecma2ShimAssemblyName) -p:Ecma2HostMmsPath=&quot;$(Ecma2HostMmsPath)&quot; -p:Ecma2ShimSourcesTargets=&quot;$(Ecma2ShimSourcesTargets)&quot; -p:Ecma2ShimOutputRoot=&quot;$(Ecma2ShimOutputRoot)&quot;" />
+		<Exec Command="dotnet build &quot;$(Ecma2ShimProject)&quot; -c $(Configuration) -restore -p:Version=&quot;$(Version)&quot; -p:Ecma2ManagementAgentName=$(Ecma2ShimAssemblyName) -p:Ecma2HostMmsPath=&quot;$(Ecma2HostMmsPath)&quot; -p:Ecma2ShimSourcesTargets=&quot;$(Ecma2ShimSourcesTargets)&quot; -p:Ecma2ShimOutputRoot=&quot;$(Ecma2ShimOutputRoot)&quot;" />
 
 		<!--
 			Locate the produced shim assembly. The shim builds to
@@ -494,7 +494,7 @@
 		<!-- Publish the host. The runtime args (self-contained + R2R, net5+ only) precede the trailing-backslash
 		     Ecma2HostOutputRoot, which is passed LAST so its escaped closing quote is harmless (Host.proj
 		     re-normalizes it). -->
-		<Exec Command="dotnet publish &quot;$(Ecma2HostPublishBuildProject)&quot; -c $(Configuration) -restore $(Ecma2HostPublishRuntimeArgs) -p:Ecma2InnerBuild=true -p:Ecma2HostExeName=$(Ecma2HostExeName) -p:Ecma2HostTargetFramework=$(Ecma2HostTargetFramework) -p:Ecma2ConsumerAssemblyName=$(AssemblyName) -p:Ecma2ConsumerProject=&quot;$(MSBuildProjectFullPath)&quot; -p:Ecma2ManagementAgentName=$(Ecma2ShimAssemblyName) -p:Ecma2HostMmsPath=&quot;$(Ecma2HostMmsPath)&quot; $(Ecma2HostPackagedArgs) -p:Ecma2HostOutputRoot=&quot;$(Ecma2HostPublishOutputRoot)&quot;" />
+		<Exec Command="dotnet publish &quot;$(Ecma2HostPublishBuildProject)&quot; -c $(Configuration) -restore -p:Version=&quot;$(Version)&quot; $(Ecma2HostPublishRuntimeArgs) -p:Ecma2InnerBuild=true -p:Ecma2HostExeName=$(Ecma2HostExeName) -p:Ecma2HostTargetFramework=$(Ecma2HostTargetFramework) -p:Ecma2ConsumerAssemblyName=$(AssemblyName) -p:Ecma2ConsumerProject=&quot;$(MSBuildProjectFullPath)&quot; -p:Ecma2ManagementAgentName=$(Ecma2ShimAssemblyName) -p:Ecma2HostMmsPath=&quot;$(Ecma2HostMmsPath)&quot; $(Ecma2HostPackagedArgs) -p:Ecma2HostOutputRoot=&quot;$(Ecma2HostPublishOutputRoot)&quot;" />
 
 		<PropertyGroup>
 			<!--
