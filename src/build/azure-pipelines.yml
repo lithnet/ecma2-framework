@@ -146,4 +146,4 @@ stages:
                   nugetPackagePath: '$(Pipeline.Workspace)/cp/*.nupkg'
                   publishInternal: false
                   publishExternal: true
-                  externalFeedCredentials: 'WindowsECMA2FrameworkNuget'
+                  externalFeedCredentials: 'MimManagementAgentsNuget'
