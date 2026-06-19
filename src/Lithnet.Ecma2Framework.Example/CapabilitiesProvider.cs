@@ -3,7 +3,7 @@ using Microsoft.MetadirectoryServices;
 
 namespace Lithnet.Ecma2Framework.Example
 {
-    internal class CapabilitiesProvider : ICapabilitiesProvider
+    public sealed class CapabilitiesProvider : ICapabilitiesProvider
     {
         /// <summary>
         /// Gets the capabilities of the management agent

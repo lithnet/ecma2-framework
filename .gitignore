@@ -261,3 +261,6 @@ __pycache__/
 *.pyc
 
 plans/
+
+# Local prerelease pack counter (per-developer; the pack-local.ps1 script is committed, this counter is not)
+src/build/.local-pack-counter

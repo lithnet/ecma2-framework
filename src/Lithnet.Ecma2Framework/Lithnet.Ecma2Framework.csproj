@@ -1,82 +1,126 @@
-﻿<Project Sdk="Microsoft.NET.Sdk">
+<Project Sdk="Microsoft.NET.Sdk">
+
+	<!--
+		The consumer-facing HOLDING (meta) package, PackageId Lithnet.Ecma2Framework - the package a management
+		agent author installs. It carries NO assembly of its own. It exists to:
+
+		  1. depend on Lithnet.Ecma2Framework.Sdk (the contracts/provider-author assembly, the actual compile
+		     reference) AND Lithnet.Ecma2Framework.Hosting (the out-of-process host runtime), so NuGet's normal
+		     transitive resolution pulls both at the matching version - the Sdk as the consumer's compile
+		     reference, the Hosting closure into the packaged host build (via the host's ProjectReference to the
+		     consumer). The dependency ranges are the default >= ; NuGet's lowest-applicable resolution gives the
+		     matching version. NO exact pins, NO version stamping.
+
+		  2. ship the build\ host/shim toolchain (props, targets, Host.proj, Shim.proj, the PackagedMa template,
+		     the source generator, and the shared shim + serialization sources) so the package alone drives the
+		     host + shim build in the consumer. The MMS assembly is NOT shipped - it is Microsoft's, and the
+		     consumer references it from their own MIM install (the framework derives that path from the
+		     consumer's own reference and forwards it to the shim build). NuGet auto-imports build\<id>.props and
+		     build\<id>.targets from THIS package because its id is Lithnet.Ecma2Framework.
+
+		Because this is a meta package, it produces no lib\ assembly: IncludeBuildOutput=false drops its (empty)
+		compile output. There are no source files in this project. The Sdk's assembly is
+		Lithnet.Ecma2Framework.Sdk.dll, so this project's own default output name (Lithnet.Ecma2Framework.dll)
+		never collides with it - and it is not packed and never referenced regardless.
+	-->
+
 	<PropertyGroup>
-		<TargetFrameworks>net472</TargetFrameworks>
-		<OutputType>Library</OutputType>
-		<PlatformTargets>AnyCPU</PlatformTargets>
-		<Deterministic>true</Deterministic>
-		<LangVersion>9</LangVersion>
-		<GeneratePackageOnBuild>true</GeneratePackageOnBuild>
-		<AppendTargetFrameworkToOutputPath>false</AppendTargetFrameworkToOutputPath>
-		<DebugSymbols>true</DebugSymbols>
+		<TargetFramework>netstandard2.0</TargetFramework>
+		<!-- Project name = assembly name = package id = Lithnet.Ecma2Framework (consistent). The (empty) compile
+		     output is never packed (IncludeBuildOutput=false) and never referenced. -->
+		<IncludeBuildOutput>false</IncludeBuildOutput>
+		<!-- A holding package has no public surface; suppress the doc-file and skip the default .cs glob (none). -->
+		<EnableDefaultCompileItems>false</EnableDefaultCompileItems>
+		<GenerateDocumentationFile>false</GenerateDocumentationFile>
+
+		<!-- NU5128: pack warns that a package with dependencies but no lib\ assembly for the target framework looks
+		     suspicious; for a deliberate holding/meta package this is exactly the intended shape. Suppressed. -->
+		<NoWarn>$(NoWarn);NU5128</NoWarn>
+
+		<!-- Packing is EXPLICIT (dotnet pack) after a full solution build: the build\ toolchain it ships pulls the
+		     source generator DLL + the shared shim/serialization sources from sibling projects' output, which must
+		     exist at pack time. Never pack on build. -->
+		<GeneratePackageOnBuild>false</GeneratePackageOnBuild>
 	</PropertyGroup>
 
 	<PropertyGroup>
-		<Description>The Lithnet ECMA2 framework provides a base for creating high performance multi-threaded management agents for Microsoft Identity Manager</Description>
+		<IsPackable>true</IsPackable>
+		<!-- PackageId defaults to the project/assembly name: Lithnet.Ecma2Framework. -->
+		<!-- VersionPrefix (NOT a fixed <Version>): plain pack -> 3.0.0; CI -p:Version=3.0.<rev> overrides it
+		     entirely; local -p:VersionSuffix=dev.<N> -> 3.0.0-dev.<N>. Published at the same version as the Sdk and
+		     Hosting packages it depends on. -->
+		<VersionPrefix>3.0.0</VersionPrefix>
+		<Description>The Lithnet ECMA2 framework provides a base for creating high performance multi-threaded management agents for Microsoft Identity Manager. Install this package to author a management agent: it pulls the SDK contracts and the host runtime, and drives the out-of-process host + shim build.</Description>
 		<Company>Lithnet</Company>
 		<Copyright>Copyright 2026 Lithnet Pty Ltd</Copyright>
 		<ProductName>Lithnet ECMA2 framework</ProductName>
-		<Version>2.0.0-beta133</Version>
 		<Authors>Lithnet</Authors>
-		<AutoIncrementPackageRevision>true</AutoIncrementPackageRevision>
-		<IsPackable>true</IsPackable>
-		<PackageId>Lithnet.Ecma2Framework</PackageId>
 		<PackageLicenseExpression>MIT</PackageLicenseExpression>
 		<RepositoryUrl>https://github.com/lithnet/ecma2-framework</RepositoryUrl>
-		<SupportUrl>https://github.com/lithnet/ecma2-framework</SupportUrl>
-		<PackageOutputPath>D:\dev\nuget\packages</PackageOutputPath>
 		<PublishRepositoryUrl>true</PublishRepositoryUrl>
-		<IncludeSymbols>true</IncludeSymbols>
-		<SymbolPackageFormat>snupkg</SymbolPackageFormat>
-		<EmbedUntrackedSources>true</EmbedUntrackedSources>
 		<Title>Lithnet ECMA2 Framework</Title>
 		<PackageProjectUrl>https://github.com/lithnet/ecma2-framework</PackageProjectUrl>
-		<GenerateDocumentationFile>True</GenerateDocumentationFile>
 	</PropertyGroup>
 
 	<PropertyGroup Condition="'$(TF_BUILD)' == 'true'">
 		<ContinuousIntegrationBuild>true</ContinuousIntegrationBuild>
 	</PropertyGroup>
 
+	<!--
+		ProjectReferences to the Sdk and Hosting projects. Pack emits these as package DEPENDENCIES (default >=
+		range) - NOT inlined DLLs (IncludeBuildOutput=false drops this project's own output, and the referenced
+		projects are their own packages) - so the consumer restores the Sdk (compile reference) and the Hosting
+		closure transitively at the matching version.
+
+		These are PLAIN ProjectReferences (no ReferenceOutputAssembly=false): NuGet pack derives a package
+		dependency only from a reference that actually flows the referenced assembly, so suppressing the assembly
+		flow (ReferenceOutputAssembly=false) would ALSO suppress the package-dependency edge, leaving an empty
+		<dependencies> group (verified). This project has no source of its own, so referencing the two assemblies
+		for compile is harmless; only the dependency edge matters and IncludeBuildOutput=false keeps the lib empty.
+	-->
 	<ItemGroup>
-	  <Compile Remove="Enums\**" />
-	  <Compile Remove="Properties\**" />
-	  <EmbeddedResource Remove="Enums\**" />
-	  <EmbeddedResource Remove="Properties\**" />
-	  <None Remove="Enums\**" />
-	  <None Remove="Properties\**" />
+		<ProjectReference Include="..\Lithnet.Ecma2Framework.Sdk\Lithnet.Ecma2Framework.Sdk.csproj" />
+		<ProjectReference Include="..\Lithnet.Ecma2Framework.Hosting\Lithnet.Ecma2Framework.Hosting.csproj" />
 	</ItemGroup>
 
+	<!--
+		Assemble the build\ host/shim toolchain into the package. This holding project OWNS the build\ folder
+		(it lives here, alongside this csproj, because the package ships it); the remaining inputs come from the
+		sibling Shim / Serialization / SourceGeneration projects. This package packs them under its own build\ so
+		NuGet auto-imports them in the consumer:
+
+		  build\*.props/*.targets/*.proj/*.template.props  - the consumer-facing import + the static host/shim projects
+		  build\tools\                                      - the source generator (referenced ONLY by Host.proj; NOT
+		                                                      in analyzers\, which would auto-apply it to the consumer)
+		  build\shim\                                       - the shared shim sources + CsWin32 input + sources targets
+		  build\Lithnet.Ecma2Framework.Serialization\       - the shared serialization sources the shim sources targets
+		                                                      globs via a sibling '..\Lithnet.Ecma2Framework.Serialization\'
+		                                                      relative path; placed here so that SAME glob resolves from
+		                                                      build\shim\ in the package exactly as it does in-repo.
+
+		The Hosting runtime (Hosting.dll + its bundled Serialization.dll + StreamJsonRpc) and the Sdk are NOT
+		shipped here as loose files: they are the package DEPENDENCIES declared above and resolve transitively.
+		Only the source generator ships here (build\tools\) because Host.proj references it as an <Analyzer>.
+
+		The generator DLL + sibling sources must exist at pack time, so packing runs AFTER a full solution build
+		(pack is explicit, not on build - GeneratePackageOnBuild=false above).
+	-->
 	<ItemGroup>
-		<PackageReference Include="Microsoft.Extensions.Options.ConfigurationExtensions" Version="10.0.9" />
-		<PackageReference Include="Microsoft.Extensions.Configuration" Version="10.0.9" />
-		<PackageReference Include="Microsoft.Extensions.DependencyInjection" Version="10.0.9" />
-		<PackageReference Include="Microsoft.Extensions.Logging" Version="10.0.9" />
-		<PackageReference Include="Microsoft.Extensions.Logging.Debug" Version="10.0.9" />
-		<PackageReference Include="Microsoft.Extensions.Logging.EventLog" Version="10.0.9" />
-		<PackageReference Include="System.Interactive.Async" Version="7.0.1" />
-		<PackageReference Include="Microsoft.Bcl.AsyncInterfaces" Version="10.0.9" />
-		<PackageReference Include="Microsoft.SourceLink.GitHub" Version="10.0.300" PrivateAssets="all" />
-		<PackageReference Include="System.Threading.Tasks.Dataflow" Version="10.0.9" />
-		<PackageReference Include="System.Text.Json" Version="10.0.9" />
+		<None Include="build\Lithnet.Ecma2Framework.props" Pack="true" PackagePath="build\" />
+		<None Include="build\Lithnet.Ecma2Framework.targets" Pack="true" PackagePath="build\" />
+		<None Include="build\Lithnet.Ecma2Framework.Host.proj" Pack="true" PackagePath="build\" />
+		<None Include="build\Lithnet.Ecma2Framework.Shim.proj" Pack="true" PackagePath="build\" />
+		<None Include="build\Lithnet.Ecma2Framework.PackagedMa.template.props" Pack="true" PackagePath="build\" />
+
+		<None Include="..\Lithnet.Ecma2Framework.SourceGeneration\bin\$(Configuration)\netstandard2.0\Lithnet.Ecma2Framework.SourceGeneration.dll" Pack="true" PackagePath="build\tools\" />
+
+		<None Include="..\Lithnet.Ecma2Framework.Shim\*.cs" Pack="true" PackagePath="build\shim\" />
+		<None Include="..\Lithnet.Ecma2Framework.Shim\NativeMethods.txt" Pack="true" PackagePath="build\shim\" />
+		<None Include="..\Lithnet.Ecma2Framework.Shim\Lithnet.Ecma2Framework.Shim.Sources.targets" Pack="true" PackagePath="build\shim\" />
+
+		<!-- The shim sources targets compiles the shared serialization sources by source (not as a reference) via
+		     a sibling-relative glob. Pack them at the sibling path the glob expects relative to build\shim\. -->
+		<None Include="..\Lithnet.Ecma2Framework.Serialization\*.cs" Pack="true" PackagePath="build\Lithnet.Ecma2Framework.Serialization\" />
 	</ItemGroup>
 
-	<ItemGroup>
-		<Reference Include="Microsoft.MetadirectoryServicesEx" Pack="true">
-			<HintPath>lib\Microsoft.MetadirectoryServicesEx.dll</HintPath>
-			<Private>True</Private>
-		</Reference>
-	</ItemGroup>
-
-	<ItemGroup>
-		<None Include="$(OutputPath)\Lithnet.Ecma2Framework.SourceGeneration.dll" Pack="true" PackagePath="analyzers/dotnet/cs" Visble="false" />
-	</ItemGroup>
-
-	<ItemGroup>
-		<ProjectReference Include="..\Lithnet.Ecma2Framework.SourceGeneration\Lithnet.Ecma2Framework.SourceGeneration.csproj" Pack="false">
-			<ReferenceOutputAssembly>false</ReferenceOutputAssembly>
-			<OutputItemType>Content</OutputItemType>
-			<CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-		</ProjectReference>
-	</ItemGroup>
 </Project>
-

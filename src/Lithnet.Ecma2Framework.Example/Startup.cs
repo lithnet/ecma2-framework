@@ -7,7 +7,7 @@ using Microsoft.Extensions.Options;
 
 namespace Lithnet.Ecma2Framework.Example
 {
-    internal class Startup : IEcmaStartup
+    public sealed class Startup : IEcmaStartup
     {
         /// <summary>
         /// Provides a method to configure the configuration builder. This allows you to add additional configuration sources

@@ -1,0 +1,81 @@
+<Project>
+
+	<!--
+		Shared source set for the net48 MIM management-agent shim.
+
+		This file is the single source of truth for everything the shim needs to compile:
+		the shim C# sources, the CsWin32 input file, and the CsWin32 source generator. It is
+		designed to be <Import>ed by two different projects:
+		  1. Lithnet.Ecma2Framework.Shim.csproj  - the net48 reference/test assembly built in
+		     this directory and exercised by the integration tests.
+		  2. A generated per-MA shim .csproj (produced by the codegen stage) living in a
+		     different directory, which imports this file to pull in the same shim sources.
+
+		Every path is rooted at $(MSBuildThisFileDirectory) so the file resolves the same
+		sources regardless of the importing project's own location. This file intentionally
+		contains NO project-identity content (no AssemblyInfo / InternalsVisibleTo, no host
+		MMS reference, no TargetFramework) - those stay owned by each importing project.
+
+		Importing projects MUST set <EnableDefaultCompileItems>false</EnableDefaultCompileItems>
+		so the SDK's automatic **\*.cs globbing does not double-include the sources globbed here.
+	-->
+
+	<ItemGroup>
+		<!--
+			All shim C# sources. AssemblyInfo.cs is excluded because it is project-identity
+			specific (it carries InternalsVisibleTo for the test assemblies) and must stay owned
+			by the importing project, not shared.
+
+			The obj\ and bin\ excludes are rooted at $(MSBuildThisFileDirectory) - this directory -
+			NOT via $(DefaultItemExcludes), which the SDK anchors to the IMPORTING project's
+			directory. When this file is imported from another folder (the generated per-MA shim),
+			$(DefaultItemExcludes) would not cover THIS directory's obj\ and bin\, so the auto-
+			generated AssemblyInfo.cs / TargetFrameworkAttribute sources left here by a prior build
+			of the Shim project itself would be swept into the importer's compile and collide
+			(duplicate-attribute CS0579). Anchoring the excludes here makes the glob self-contained
+			regardless of where it is imported from.
+		-->
+		<Compile Include="$(MSBuildThisFileDirectory)**\*.cs"
+		         Exclude="$(MSBuildThisFileDirectory)AssemblyInfo.cs;$(MSBuildThisFileDirectory)obj\**\*.cs;$(MSBuildThisFileDirectory)bin\**\*.cs;$(DefaultItemExcludes);$(DefaultItemExcludesInProjectDir)" />
+	</ItemGroup>
+
+	<ItemGroup>
+		<!--
+			Shared serialization sources (Path C / architecture §3 §6): the ONE definition of the
+			MmsPipeSerializer, the dual-framework surrogate, and the *Serializable DTOs, compiled into
+			BOTH the net8 worker (as the Lithnet.Ecma2Framework.Serialization ASSEMBLY) AND (here, by
+			source) the net48 shim, so the two carry byte-identical wire encoding. The shim carries no
+			Serialization ASSEMBLY reference (a Lithnet.* reference would break the shim closure invariant);
+			it compiles the same .cs files. The net48 surrogate branch (#if NETFRAMEWORK) and the
+			internal-visibility branch (#if ECMA2_SHIM_INTERNAL) both compile here. The closure stays
+			{host MMS, BCL, CsWin32, these BCL-only sources}.
+
+			Linked into a 'Serialization' subfolder so the file names do not collide with the shim's own
+			sources in the build output's intermediate tree. obj\ and bin\ under the Serialization project
+			directory are excluded so a prior multi-target build of that project's auto-generated
+			AssemblyInfo/TargetFrameworkAttribute sources are not swept into the shim compile (duplicate-
+			attribute CS0579). Each path is absolute so the glob resolves identically whether imported from
+			this directory or a generated per-MA shim elsewhere.
+		-->
+		<Compile Include="$(MSBuildThisFileDirectory)..\Lithnet.Ecma2Framework.Serialization\*.cs"
+		         Exclude="$(MSBuildThisFileDirectory)..\Lithnet.Ecma2Framework.Serialization\obj\**\*.cs;$(MSBuildThisFileDirectory)..\Lithnet.Ecma2Framework.Serialization\bin\**\*.cs">
+			<Link>Serialization\%(Filename)%(Extension)</Link>
+		</Compile>
+	</ItemGroup>
+
+	<ItemGroup>
+		<!-- CsWin32 input file. CsWin32's own props auto-include NativeMethods.txt only when it
+		     exists relative to the importing project's directory; an importer in another folder
+		     would miss it, so we include it explicitly by absolute path. The Condition avoids a
+		     duplicate AdditionalFiles entry when the importer lives in this same directory (the
+		     Shim test project), where CsWin32 has already added the file by its relative name. -->
+		<AdditionalFiles Include="$(MSBuildThisFileDirectory)NativeMethods.txt"
+		                 Condition="'$(MSBuildProjectDirectory)\' != '$(MSBuildThisFileDirectory)'" />
+	</ItemGroup>
+
+	<ItemGroup>
+		<!-- CsWin32: build-time only source generator, produces no runtime dependency. -->
+		<PackageReference Include="Microsoft.Windows.CsWin32" Version="0.3.287" PrivateAssets="all" />
+	</ItemGroup>
+
+</Project>

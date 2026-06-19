@@ -1,0 +1,77 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+	<!--
+		A CLEAN, package-only consumer of the Lithnet.Ecma2Framework NuGet package (Design C end-to-end proof).
+
+		This project references the framework SOLELY via the produced .nupkg from a local source (see the sibling
+		nuget.config), NOT via any in-repo ProjectReference. Restoring the package gives this library:
+		  * the SDK contracts (lib\netstandard2.0\Lithnet.Ecma2Framework.Sdk.dll), auto-referenced;
+		  * the consumer-facing build\Lithnet.Ecma2Framework.props (auto-imported FIRST; sets Ecma2PackagedTooling
+		    and redirects every tooling path into the package) and build\Lithnet.Ecma2Framework.targets
+		    (auto-imported; builds the out-of-process host exe + the net48 shim after this library is built).
+
+		The package alone must therefore drive the whole toolchain: building this project produces
+		Ecma2Host.exe (+ its closure) FLAT in the output root and ecma2\<AssemblyName>.Ecma2.dll (the shim), with
+		no framework source tree present. The PackageConsumeEndToEndTests integration test asserts exactly that.
+	-->
+
+	<PropertyGroup>
+		<TargetFramework>net8.0</TargetFramework>
+		<OutputType>Library</OutputType>
+		<LangVersion>12</LangVersion>
+		<IsPackable>false</IsPackable>
+
+		<!-- This project is built explicitly by the e2e test (after the package is produced), NOT as part of the
+		     normal solution build - the package may not exist when the solution builds. Excluded from the .sln. -->
+
+		<!-- NU1701: the host MMS reference is a net4x assembly; on net8 it loads via type-forwarding facades
+		     (proven dependable). MSB3270: processor-architecture mismatch warning for the same AnyCPU/net4x
+		     reference. Both are expected and suppressed. -->
+		<NoWarn>$(NoWarn);NU1701;MSB3270</NoWarn>
+
+		<!-- The framework package version this consumer pulls from the local source. The e2e test packs the three
+		     framework packages with -p:VersionSuffix=test (i.e. 3.0.0-test, NOT the stable VersionPrefix 3.0.0,
+		     which would pollute the shared dev feed/cache) and passes that exact version via -p for the OUTER
+		     build. This default MUST equal that packed version because the nested host build (Host.proj, a
+		     separate dotnet process that ProjectReferences this consumer) re-evaluates this csproj WITHOUT the
+		     test's -p override, so it relies on this default to resolve the same package. Keep the two in lockstep:
+		     the test's VersionSuffix and this default both say 'test'. -->
+		<Ecma2PackageTestVersion Condition="'$(Ecma2PackageTestVersion)' == ''">3.0.0-test</Ecma2PackageTestVersion>
+	</PropertyGroup>
+
+	<ItemGroup>
+		<!-- The framework holding package, consumed ONLY from the local source. Its build\ props/targets
+		     auto-import and drive the host + shim build, and its >= dependencies pull the Sdk (compile reference)
+		     and Hosting (transitive into the host build) at the matching version.
+
+		     The version is pinned EXACTLY (not floated): the out-of-process host project ProjectReferences this
+		     consumer and therefore inherits this holding package - and its Sdk + Hosting dependencies -
+		     transitively. An exact pin makes the host resolve the SAME local packages (the generator lives in
+		     build\tools\, referenced only by Host.proj - it is NOT in analyzers\, so it never auto-applies to the
+		     host or this consumer compile). A floating range would let the host re-resolve against the public feed
+		     to an older published version whose analyzer DOES sit in analyzers\ and would wrongly run in the host
+		     compile. The transitively-resolved Sdk's Microsoft.Extensions.* dependencies flow through to the host
+		     so the generated code compiles. -->
+		<PackageReference Include="Lithnet.Ecma2Framework" Version="[$(Ecma2PackageTestVersion)]" />
+	</ItemGroup>
+
+	<ItemGroup>
+		<!-- Host MMS assembly: this consumer's providers name real MMS types (Schema, SchemaType,
+		     MACapabilities, etc.), so it needs its own compile reference. Microsoft.MetadirectoryServicesEx.dll is
+		     Microsoft's assembly and is NOT shipped in the framework package: a real consumer references it from
+		     their own MIM (Synchronization Service) install. This in-repo package-test consumer plays that role,
+		     pointing the HintPath at the framework repo's reference copy. Private=true so the facade DLL flows into
+		     the host's transitive closure (the host ProjectReferences this consumer) AND the framework derives the
+		     shim/host build's MMS path from this same resolved reference. -->
+		<Reference Include="Microsoft.MetadirectoryServicesEx">
+			<HintPath>..\Lithnet.Ecma2Framework.Sdk\lib\Microsoft.MetadirectoryServicesEx.dll</HintPath>
+			<Private>true</Private>
+		</Reference>
+	</ItemGroup>
+
+	<ItemGroup>
+		<PackageReference Include="Microsoft.Extensions.DependencyInjection" Version="10.0.9" />
+		<PackageReference Include="Microsoft.Extensions.Logging" Version="10.0.9" />
+	</ItemGroup>
+
+</Project>

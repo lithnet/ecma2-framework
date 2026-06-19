@@ -1,0 +1,15 @@
+<Project>
+  <PropertyGroup>
+    <!-- Committed ON for the SampleConsumer so the opted-in packaged-MA manifest path is exercised
+         end-to-end by Lithnet.Ecma2Framework.Integration.Tests. -->
+    <Ecma2GeneratePackagedMa>true</Ecma2GeneratePackagedMa>
+
+    <!-- Fixed test GUID: the integration test asserts the emitted manifest's <id> equals this value. -->
+    <Ecma2PackagedManagementAgentId>{6F9619FF-8B86-D011-B42D-00CF4FC964FF}</Ecma2PackagedManagementAgentId>
+    <Ecma2PackagedMaCompany>Lithnet</Ecma2PackagedMaCompany>
+    <Ecma2PackagedMaListName>Sample</Ecma2PackagedMaListName>
+
+    <!-- Optional: defaults to the list name. -->
+    <Ecma2PackagedMaHelpText></Ecma2PackagedMaHelpText>
+  </PropertyGroup>
+</Project>

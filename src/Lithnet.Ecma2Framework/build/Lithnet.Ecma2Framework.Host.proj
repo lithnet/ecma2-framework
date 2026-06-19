@@ -1,0 +1,174 @@
+<Project>
+
+	<!--
+		The static, framework-shipped HOST project (Design C).
+
+		This is the SECOND build unit produced from a consumer build, the sibling of
+		Lithnet.Ecma2Framework.Shim.proj. The consumer is a plain Library; this project compiles to the
+		out-of-process host EXE (Ecma2Host.exe by default) that miiserver's shim launches. It references the
+		consumer library by ProjectReference so the host inherits the consumer's FULL transitive runtime
+		closure (its NuGet packages - Okta.Sdk, Newtonsoft.Json, etc.), which a bare metadata reference would
+		NOT carry. The framework source generator runs here in the host compilation and discovers the
+		consumer's IEcmaStartup + providers from that referenced assembly's metadata, emitting the Main and
+		config providers into THIS assembly. The consumer DLL carries no generated code and no analyzer.
+
+		Invoked on demand by Lithnet.Ecma2Framework.targets (BuildEcma2Host) as a separate dotnet process; the
+		.proj extension keeps the solution from picking it up.
+
+		EXPLICIT Sdk.props / Sdk.targets imports so the isolated BaseIntermediateOutputPath / BaseOutputPath
+		can be set BEFORE Sdk.props runs (same reasoning as the shim project).
+	-->
+
+	<PropertyGroup Condition="'$(Ecma2HostOutputRoot)' != ''">
+		<Ecma2HostOutputRootNormalized>$([MSBuild]::EnsureTrailingSlash('$(Ecma2HostOutputRoot)'))</Ecma2HostOutputRootNormalized>
+		<BaseIntermediateOutputPath>$(Ecma2HostOutputRootNormalized)obj\</BaseIntermediateOutputPath>
+		<BaseOutputPath>$(Ecma2HostOutputRootNormalized)bin\</BaseOutputPath>
+	</PropertyGroup>
+
+	<Import Project="Sdk.props" Sdk="Microsoft.NET.Sdk" />
+
+	<PropertyGroup>
+		<!-- .proj extension: pin the C# language targets explicitly (the SDK cannot infer language from the
+		     file extension), so CoreCompile and the analyzer pipeline are imported via Sdk.targets. -->
+		<LanguageTargets>$(MSBuildToolsPath)\Microsoft.CSharp.targets</LanguageTargets>
+	</PropertyGroup>
+
+	<PropertyGroup>
+		<!-- The host exe is built to the CONSUMER-CHOSEN target framework, supplied by the caller
+		     (BuildEcma2Host) from the consumer's own $(TargetFramework). Never hardcoded. -->
+		<TargetFramework>$(Ecma2HostTargetFramework)</TargetFramework>
+		<LangVersion>12</LangVersion>
+		<OutputType>Exe</OutputType>
+		<IsPackable>false</IsPackable>
+		<Nullable>disable</Nullable>
+
+		<!-- Static host exe name (default Ecma2Host). An Exe emits <name>.exe AND <name>.dll; a static name
+		     never collides with the consumer's own <consumer>.dll in the output, and each MA installs to its
+		     own directory so there is no cross-MA collision. Supplied by the caller; overridable. -->
+		<AssemblyName>$(Ecma2HostExeName)</AssemblyName>
+
+		<!-- NU1701/MSB3270: the host MMS reference is a net4x assembly loaded on net8+ via type-forwarding
+		     facades (proven dependable). -->
+		<NoWarn>$(NoWarn);NU1701;MSB3270</NoWarn>
+
+		<!-- The host carries NO hand-written source of its own: every line it compiles is emitted by the
+		     framework source generator (the Main + config providers) plus the SDK's auto-generated AssemblyInfo,
+		     both added to the compilation independently of the default **\*.cs glob. Disable that glob so the
+		     host build never sweeps stray .cs files from its own directory. In-repo this is a no-op (Host.proj's
+		     directory, src\Lithnet.Ecma2Framework\build\, contains no .cs). In the PACKAGE, Host.proj sits in the
+		     same build\ folder as the packaged shim + serialization SOURCES (build\shim\*.cs,
+		     build\Lithnet.Ecma2Framework.Serialization\*.cs) which exist only to be compiled into the net48 SHIM;
+		     without this, the host's default glob would wrongly pull those net48/CsWin32 sources into the net8
+		     host compile (CS0246 'Windows', CS0227 unsafe). -->
+		<EnableDefaultCompileItems>false</EnableDefaultCompileItems>
+
+		<!-- The worker is a background process on a MIM server; it has no UI and logs to the event log / a file,
+		     so the localized satellite resource assemblies its closure pulls in (StreamJsonRpc, MessagePack,
+		     etc. ship cs/de/es/fr/... folders) are dead weight. Keep English only so the flat worker root stays
+		     clean. (The consumer library sets this for its own output; the host build is a separate project and
+		     must set it too, since the worker's full closure is assembled here.) -->
+		<SatelliteResourceLanguages>en</SatelliteResourceLanguages>
+
+		<!-- The worker only ever runs as a Windows-x64 process spawned by the MIM Synchronization Service shim,
+		     so pin the RID rather than building portable. Portable (no RID) makes the SDK copy EVERY platform's
+		     RID-specific assets for fallback - e.g. the browser/WASM build of System.Text.Encodings.Web - which
+		     is dead weight here. Pinning win-x64 keeps the Windows assets (System.Diagnostics.EventLog, which the
+		     worker uses for event logging) and drops the rest.
+
+		     RuntimeIdentifier is DEFAULTED to win-x64 but left overridable: the caller (BuildEcma2Host /
+		     PublishEcma2Host) always supplies -r $(Ecma2WorkerRuntimeIdentifier), so this default only applies
+		     when the project is built standalone. SelfContained is deliberately LEFT UNSET here (the SDK defaults
+		     it to false for a framework-dependent build): `dotnet build` (BuildEcma2Host) therefore produces a
+		     FRAMEWORK-DEPENDENT worker (the server provides the .NET runtime), while `dotnet publish`
+		     (PublishEcma2Host) passes -p:SelfContained=true -p:PublishReadyToRun=true to produce a SELF-CONTAINED,
+		     ReadyToRun worker. This is the build-vs-publish split: the same project yields a fast framework-dependent
+		     worker on build and a self-contained + R2R worker on publish.
+
+		     AppendRuntimeIdentifierToOutputPath=false keeps the output flat so the worker still lands directly in
+		     the output root (no win-x64\ subfolder) for both build and publish. -->
+		<RuntimeIdentifier Condition="'$(RuntimeIdentifier)' == ''">win-x64</RuntimeIdentifier>
+		<AppendRuntimeIdentifierToOutputPath>false</AppendRuntimeIdentifierToOutputPath>
+	</PropertyGroup>
+
+	<!--
+		The consumer's assembly simple name, surfaced to the generator so DiscoverFromReferencedConsumer knows
+		which referenced assembly to scan. The effective MA name flows via Ecma2ManagementAgentName (the
+		generator keys its config-registration provider on it).
+	-->
+	<ItemGroup>
+		<CompilerVisibleProperty Include="Ecma2ConsumerAssemblyName" />
+		<CompilerVisibleProperty Include="Ecma2ManagementAgentName" />
+	</ItemGroup>
+
+	<ItemGroup>
+		<!-- The consumer library: ProjectReference (NOT a bare <Reference>) so the consumer's full transitive
+		     NuGet closure is restored and copied next to the host exe. The Ecma2InnerBuild guard the caller
+		     passes globally stops the consumer's own post-build targets re-triggering in this nested build.
+		     Resolves identically in both modes. -->
+		<ProjectReference Include="$(Ecma2ConsumerProject)" />
+	</ItemGroup>
+
+	<!--
+		The framework SDK (provider/startup contracts) + the Hosting runtime (WorkerEntryPoint the generated
+		Main calls) + the source generator (emits the Main + config registration provider into THIS host
+		assembly from the referenced consumer's symbols).
+
+		In-repo (Ecma2PackagedTooling unset) these are ProjectReferences to the framework source projects.
+		Packaged (Ecma2PackagedTooling=true, set by the package props), they are the SAME assemblies the
+		consumer compiled against, referenced by path - so the host needs no framework source tree. The
+		generator is referenced as an <Analyzer> from build\tools\, NOT from the package's analyzers\ folder
+		(an analyzers\ placement would auto-apply it to the CONSUMER compile, which Design C forbids).
+	-->
+	<ItemGroup Condition="'$(Ecma2PackagedTooling)' != 'true'">
+		<ProjectReference Include="$(MSBuildThisFileDirectory)..\..\Lithnet.Ecma2Framework.Sdk\Lithnet.Ecma2Framework.Sdk.csproj" />
+		<ProjectReference Include="$(MSBuildThisFileDirectory)..\..\Lithnet.Ecma2Framework.Hosting\Lithnet.Ecma2Framework.Hosting.csproj" />
+		<ProjectReference Include="$(MSBuildThisFileDirectory)..\..\Lithnet.Ecma2Framework.SourceGeneration\Lithnet.Ecma2Framework.SourceGeneration.csproj"
+		                  OutputItemType="Analyzer"
+		                  ReferenceOutputAssembly="false" />
+	</ItemGroup>
+
+	<ItemGroup Condition="'$(Ecma2PackagedTooling)' == 'true'">
+		<!-- In packaged mode the host's framework runtime closure - Hosting.dll, the bundled internal
+		     Serialization.dll, StreamJsonRpc (+ its closure), and the Lithnet.Ecma2Framework SDK - arrives
+		     TRANSITIVELY through the unconditional ProjectReference to the consumer above. The consumer installs
+		     the holding package (Lithnet.Ecma2Framework), which depends on both Lithnet.Ecma2Framework.Sdk and
+		     Lithnet.Ecma2Framework.Hosting; NuGet's normal restore flows that whole closure into this host build
+		     via the consumer reference. No PackageReference is hand-listed here and no version is pinned - NuGet's
+		     lowest-applicable resolution gives the matching Sdk + Hosting set the consumer restored.
+
+		     The ONLY framework input this packaged branch adds is the source generator, referenced as a
+		     non-auto-applied <Analyzer> from build\tools\ (NOT the package's analyzers\ folder, which would
+		     wrongly auto-apply it to the consumer compile). -->
+		<Analyzer Include="$(Ecma2GeneratorDll)" />
+	</ItemGroup>
+
+	<!--
+		The host compiles the generated config-parameter provider, which names Microsoft.MetadirectoryServices
+		types (IConfigParameters, ConfigParameterDefinition, ParameterValidationResult), so the host needs the
+		MMS assembly at COMPILE time - not only at runtime. There is NO default path: the caller (BuildEcma2Host)
+		ALWAYS supplies -p:Ecma2HostMmsPath= with the path derived from the consumer's own
+		Microsoft.MetadirectoryServicesEx reference (ResolveEcma2HostMmsPath fails loud first if the consumer
+		declared none), so a missing value here is a hard error, never a silent fallback to a bundled copy.
+	-->
+	<PropertyGroup>
+		<Ecma2HostMmsPathError Condition="'$(Ecma2HostMmsPath)' == ''">true</Ecma2HostMmsPathError>
+	</PropertyGroup>
+
+	<Target Name="Ecma2RequireHostMmsPath" BeforeTargets="ResolveReferences">
+		<Error Condition="'$(Ecma2HostMmsPathError)' == 'true'"
+		       Text="The Lithnet ECMA2 host build was invoked without Ecma2HostMmsPath. This path must be supplied by the framework targets (derived from the consumer's Microsoft.MetadirectoryServicesEx reference). The host cannot be built without the host MMS assembly." />
+	</Target>
+
+	<ItemGroup>
+		<!-- Host MMS assembly: the host names real MMS types at compile time. Private=true so the facade DLL sits
+		     next to the host exe at runtime. The HintPath is the caller-supplied path derived from the consumer's
+		     own reference. -->
+		<Reference Include="Microsoft.MetadirectoryServicesEx">
+			<HintPath>$(Ecma2HostMmsPath)</HintPath>
+			<Private>true</Private>
+		</Reference>
+	</ItemGroup>
+
+	<Import Project="Sdk.targets" Sdk="Microsoft.NET.Sdk" />
+
+</Project>

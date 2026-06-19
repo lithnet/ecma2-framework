@@ -2,20 +2,15 @@
 	<PropertyGroup>
 		<TargetFramework>net48</TargetFramework>
 		<LangVersion>9</LangVersion>
-		<ILRepackEnabled>true</ILRepackEnabled>
 	</PropertyGroup>
 
 	<ItemGroup>
-		<PackageReference Include="Costura.Fody" Version="5.7.0">
-		  <PrivateAssets>all</PrivateAssets>
-		  <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
-		</PackageReference>
-		<PackageReference Include="Lithnet.Ecma2Framework" Version="2.0.43" />
+		<PackageReference Include="Lithnet.Ecma2Framework" Version="3.0.0" />
 	</ItemGroup>
 
 	<ItemGroup>
 		<Reference Include="Microsoft.MetadirectoryServicesEx">
-			<HintPath>..\Lithnet.Ecma2Framework\lib\Microsoft.MetadirectoryServicesEx.dll</HintPath>
+			<HintPath>..\Lithnet.Ecma2Framework.Sdk\lib\Microsoft.MetadirectoryServicesEx.dll</HintPath>
 		</Reference>
 		<Reference Include="System.Net.Http" />
 	</ItemGroup>

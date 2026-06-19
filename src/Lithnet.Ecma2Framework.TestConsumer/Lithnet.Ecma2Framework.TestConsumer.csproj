@@ -1,0 +1,39 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <TargetFramework>net8.0</TargetFramework>
+    <LangVersion>12</LangVersion>
+    <IsPackable>false</IsPackable>
+    <OutputType>Library</OutputType>
+    <!-- NU1701: the host MMS reference is a net4x assembly; on net8 it loads via type-forwarding
+         facades (proven dependable). MSB3270: processor-architecture mismatch warning for the same
+         AnyCPU/net4x reference. Both are expected and suppressed. -->
+    <NoWarn>$(NoWarn);NU1701;MSB3270</NoWarn>
+  </PropertyGroup>
+  <ItemGroup>
+    <!-- Host MMS assembly: the consumer's providers name real MMS types (Schema, CSEntryChange,
+         MACapabilities, etc.). This project is a Library; the framework targets build the out-of-process
+         host exe (Ecma2Host.exe) as a separate build unit that ProjectReferences this consumer and inherits
+         this MMS reference through its transitive closure — Private=true so the facade DLL is carried into
+         the host's output. -->
+    <Reference Include="Microsoft.MetadirectoryServicesEx">
+      <HintPath>..\Lithnet.Ecma2Framework.Sdk\lib\Microsoft.MetadirectoryServicesEx.dll</HintPath>
+      <Private>true</Private>
+    </Reference>
+  </ItemGroup>
+  <ItemGroup>
+    <!-- Framework (provider/startup contracts) + Hosting (WorkerEntryPoint runtime). The generated worker
+         Main lives in the host exe (built by the framework targets), not in this library; this consumer
+         carries no source generator analyzer reference and no generated code. -->
+    <ProjectReference Include="..\Lithnet.Ecma2Framework.Sdk\Lithnet.Ecma2Framework.Sdk.csproj" />
+    <ProjectReference Include="..\Lithnet.Ecma2Framework.Hosting\Lithnet.Ecma2Framework.Hosting.csproj" />
+  </ItemGroup>
+  <ItemGroup>
+    <PackageReference Include="Microsoft.Extensions.DependencyInjection" Version="10.0.9" />
+    <PackageReference Include="Microsoft.Extensions.Logging" Version="10.0.9" />
+  </ItemGroup>
+  <!-- Importing the framework targets builds the out-of-process host exe (Ecma2Host.exe) as a separate build
+       unit that ProjectReferences this consumer, copying its full closure FLAT into this project's output ROOT
+       (consumer output + host form one net8 worker). The integration tests spawn that host exe as the worker
+       process. -->
+  <Import Project="..\Lithnet.Ecma2Framework\build\Lithnet.Ecma2Framework.targets" />
+</Project>

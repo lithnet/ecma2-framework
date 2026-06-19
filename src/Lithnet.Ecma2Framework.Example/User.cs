@@ -3,7 +3,7 @@
     /// <summary>
     /// A model that represents a user obtained from the API
     /// </summary>
-    internal class User
+    public sealed class User
     {
         public string Id { get; set; }
 

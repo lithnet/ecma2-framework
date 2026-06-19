@@ -1,0 +1,17 @@
+<Project>
+  <PropertyGroup>
+    <!-- Set to true to generate a FIM Packaged MA manifest as part of the build.
+         When false (default), no manifest is generated and the MA works as a standard ECMA2 extension. -->
+    <Ecma2GeneratePackagedMa>false</Ecma2GeneratePackagedMa>
+
+    <!-- Required when Ecma2GeneratePackagedMa is true.
+         Stable id of this MA's packaged-MA definition. New MA: generate a fresh GUID.
+         Migrating an existing MA: paste its existing id so a re-import updates it. -->
+    <Ecma2PackagedManagementAgentId></Ecma2PackagedManagementAgentId>
+    <Ecma2PackagedMaCompany></Ecma2PackagedMaCompany>
+    <Ecma2PackagedMaListName></Ecma2PackagedMaListName>
+
+    <!-- Optional: defaults to the list name. -->
+    <Ecma2PackagedMaHelpText></Ecma2PackagedMaHelpText>
+  </PropertyGroup>
+</Project>

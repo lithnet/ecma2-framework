@@ -1,0 +1,127 @@
+<Project>
+
+	<!--
+		The static, framework-shipped shim project.
+
+		This project is the SECOND output of the one-build two-output v3 build: it compiles the shared
+		shim sources (Lithnet.Ecma2Framework.Shim.Sources.targets) - which include the four fixed-named
+		public host-facing implementation classes - into a single, self-contained net48 assembly named
+		after the management agent. That assembly is what FIM's miiserver.exe loads as the MA.
+
+		It is invoked on demand by the consumer-facing Lithnet.Ecma2Framework.targets (the BuildEcma2Shim
+		target), NOT by the normal solution build - which is why it carries the .proj extension so the
+		solution does not pick it up as an ordinary project.
+
+		It uses EXPLICIT Sdk.props / Sdk.targets imports (rather than the Sdk="" attribute) so that the
+		isolated BaseIntermediateOutputPath / BaseOutputPath can be set BEFORE Sdk.props runs. The SDK reads
+		BaseIntermediateOutputPath during Sdk.props to compute MSBuildProjectExtensionsPath (where restore
+		writes project.assets.json); setting it after the import would be too late and restore would land in
+		the default obj\ instead of the isolated location.
+
+		CLOSURE INVARIANT: this project references ONLY the host MMS assembly, the BCL, and the CsWin32
+		analyzer (via the shared sources targets). It must NOT reference any Lithnet runtime DLL. The
+		shim carries its own compiled-in copy of the shared shim sources; nothing Lithnet is referenced at
+		runtime. Part C asserts the produced assembly's referenced assemblies contain no Lithnet.*.
+
+		PUBLIC-SURFACE INVARIANT: the only public types of the produced assembly are the four host-facing
+		impls (Ecma2Implementation, Ecma2ImportImplementation, Ecma2ExportImplementation,
+		Ecma2PasswordImplementation) - fixed-named shared source in the Lithnet.Ecma2Framework.Shim
+		namespace. Every other shared shim source type is internal,
+		and this project deliberately omits the Shim project's AssemblyInfo.cs (with its InternalsVisibleTo),
+		so nothing internal leaks.
+	-->
+
+	<!--
+		Isolate this project's obj/bin under the caller-supplied Ecma2ShimOutputRoot. Set BEFORE Sdk.props
+		(see header) and deliberately as ordinary (non-global) properties: the SDK treats global properties
+		as inherited by any referenced build, which can redirect a referenced project's restore into the
+		wrong obj\.
+	-->
+	<PropertyGroup Condition="'$(Ecma2ShimOutputRoot)' != ''">
+		<!-- Normalize to a trailing directory separator. Callers may pass the root without one (passing a
+		     trailing backslash inside a quoted command-line argument is unreliable - the backslash escapes
+		     the closing quote), so append it here when absent. EnsureTrailingSlash is an MSBuild intrinsic. -->
+		<Ecma2ShimOutputRootNormalized>$([MSBuild]::EnsureTrailingSlash('$(Ecma2ShimOutputRoot)'))</Ecma2ShimOutputRootNormalized>
+		<BaseIntermediateOutputPath>$(Ecma2ShimOutputRootNormalized)obj\</BaseIntermediateOutputPath>
+		<BaseOutputPath>$(Ecma2ShimOutputRootNormalized)bin\</BaseOutputPath>
+	</PropertyGroup>
+
+	<Import Project="Sdk.props" Sdk="Microsoft.NET.Sdk" />
+
+	<PropertyGroup>
+		<!-- This project carries the .proj extension (so the solution does not treat it as an ordinary
+		     project), which means the SDK cannot infer the language from the file extension. Pin the C#
+		     language targets explicitly so CreateManifestResourceNames / CoreCompile and the rest of the
+		     C# build graph are imported via Sdk.targets. -->
+		<LanguageTargets>$(MSBuildToolsPath)\Microsoft.CSharp.targets</LanguageTargets>
+	</PropertyGroup>
+
+	<PropertyGroup>
+		<TargetFramework>net48</TargetFramework>
+		<LangVersion>12</LangVersion>
+		<OutputType>Library</OutputType>
+		<IsPackable>false</IsPackable>
+		<Nullable>disable</Nullable>
+		<!-- CsWin32 generates unsafe code for HANDLE and pointer types; required by the generator, not our own code. -->
+		<AllowUnsafeBlocks>true</AllowUnsafeBlocks>
+		<!-- PInvoke009 is CsWin32 recommending the System.Memory package for Span-based marshalling. We deliberately
+		     do NOT reference System.Memory: it is a separate redistributable on net48, and adding it to the shim's
+		     closure (loaded into miiserver.exe's shared AppDomain) reintroduces the exact shared-assembly version
+		     conflict class that this whole out-of-process design exists to eliminate. CsWin32 generates working
+		     non-Span P/Invoke without it, so the warning is advisory only. Keep the closure to {host MMS, BCL, CsWin32}. -->
+		<NoWarn>$(NoWarn);PInvoke009</NoWarn>
+		<!-- The shim sources are globbed by the shared .targets; disable the SDK's automatic **\*.cs globbing
+		     so the same files are not double-included. -->
+		<EnableDefaultCompileItems>false</EnableDefaultCompileItems>
+
+		<!-- The shared Lithnet transport types are public in ObjectModel.dll (worker + providers author against
+		     them) but MUST compile internal here so the generated shim's only public types remain the four
+		     host-facing impls (PUBLIC-SURFACE INVARIANT above; asserted by Shim.Build.Tests). This constant
+		     flips their access modifier to internal via the ECMA2_SHIM_INTERNAL #if in the shared sources. -->
+		<DefineConstants>$(DefineConstants);ECMA2_SHIM_INTERNAL</DefineConstants>
+
+		<!-- The shim's FIM identity (the EFFECTIVE shim name). Supplied by the caller (BuildEcma2Shim) via
+		     -p:Ecma2ManagementAgentName, which carries the resolved <assembly>.Ecma2 name (or the override).
+		     This becomes the assembly's simple name, and the shim self-identifies from this same name at
+		     runtime (WorkerPathResolver.Resolve()). The host-facing impls are fixed-named shared source in
+		     the Lithnet.Ecma2Framework.Shim namespace, not generated. -->
+		<AssemblyName>$(Ecma2ManagementAgentName)</AssemblyName>
+	</PropertyGroup>
+
+	<!--
+		Overridable input paths. The defaults resolve the in-repo locations relative to THIS project
+		(src\Lithnet.Ecma2Framework\build\). When this project ships inside the NuGet package, the caller
+		(or the packaged props) overrides these to the packaged locations / the customer's MIM install.
+	-->
+	<PropertyGroup>
+		<!-- The shared shim sources: the compile glob, NativeMethods.txt, and the CsWin32 analyzer. -->
+		<Ecma2ShimSourcesTargets Condition="'$(Ecma2ShimSourcesTargets)' == ''">$(MSBuildThisFileDirectory)..\..\Lithnet.Ecma2Framework.Shim\Lithnet.Ecma2Framework.Shim.Sources.targets</Ecma2ShimSourcesTargets>
+
+		<!-- The host MMS assembly. There is NO default: the caller (BuildEcma2Shim) ALWAYS supplies
+		     -p:Ecma2HostMmsPath= with the path derived from the consumer's own Microsoft.MetadirectoryServicesEx
+		     reference. The shim build is never invoked without it (ResolveEcma2HostMmsPath fails loud first), so
+		     a missing value here is a hard error rather than a silent fallback to a bundled copy. -->
+		<Ecma2HostMmsPathError Condition="'$(Ecma2HostMmsPath)' == ''">true</Ecma2HostMmsPathError>
+	</PropertyGroup>
+
+	<Target Name="Ecma2RequireHostMmsPath" BeforeTargets="ResolveReferences">
+		<Error Condition="'$(Ecma2HostMmsPathError)' == 'true'"
+		       Text="The Lithnet ECMA2 shim build was invoked without Ecma2HostMmsPath. This path must be supplied by the framework targets (derived from the consumer's Microsoft.MetadirectoryServicesEx reference). The shim cannot be built without the host MMS assembly." />
+	</Target>
+
+	<ItemGroup>
+		<!-- Host MMS assembly: referenced locally, never redistributed. Private=false so the host's own
+		     DLL is NOT copied next to the shim (the host provides it in miiserver.exe's load context). The
+		     HintPath is the caller-supplied path derived from the consumer's own reference. -->
+		<Reference Include="Microsoft.MetadirectoryServicesEx">
+			<HintPath>$(Ecma2HostMmsPath)</HintPath>
+			<Private>false</Private>
+		</Reference>
+	</ItemGroup>
+
+	<!-- The shared shim source set: the compile glob, the CsWin32 input file, and the CsWin32 analyzer. -->
+	<Import Project="$(Ecma2ShimSourcesTargets)" />
+
+	<Import Project="Sdk.targets" Sdk="Microsoft.NET.Sdk" />
+
+</Project>

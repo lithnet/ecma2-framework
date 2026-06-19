@@ -1,0 +1,120 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+	<PropertyGroup>
+		<TargetFramework>netstandard2.0</TargetFramework>
+		<OutputType>Library</OutputType>
+		<!-- The project, assembly, and package id are all Lithnet.Ecma2Framework.Sdk (consistent). The root
+		     namespace, however, stays Lithnet.Ecma2Framework so consumer `using` statements never change -
+		     a namespace differing from the assembly/package name is a normal, accepted pattern. -->
+		<RootNamespace>Lithnet.Ecma2Framework</RootNamespace>
+		<PlatformTargets>AnyCPU</PlatformTargets>
+		<Deterministic>true</Deterministic>
+		<LangVersion>12</LangVersion>
+		<!-- Packing is EXPLICIT (dotnet pack), not on every build: the package's build\tools\ item pulls the
+		     source generator DLL from the sibling SourceGeneration project. That sibling references THIS SDK
+		     project, so it builds AFTER it; pack-on-build here would run before its DLL exists. The package is
+		     therefore produced by an explicit `dotnet pack` after a full solution build. -->
+		<GeneratePackageOnBuild>false</GeneratePackageOnBuild>
+		<AppendTargetFrameworkToOutputPath>false</AppendTargetFrameworkToOutputPath>
+		<DebugSymbols>true</DebugSymbols>
+		<!-- NU1701: the host MMS reference is a net4x assembly; on net8 it loads via type-forwarding
+		     facades (proven dependable). MSB3270: processor-architecture mismatch warning for the same
+		     AnyCPU/net4x reference. Both expected, suppressed. -->
+		<NoWarn>$(NoWarn);NU1701;MSB3270</NoWarn>
+		<IncludeBuildOutput>true</IncludeBuildOutput>
+	</PropertyGroup>
+
+	<PropertyGroup>
+		<Description>The Lithnet ECMA2 framework provides a base for creating high performance multi-threaded management agents for Microsoft Identity Manager</Description>
+		<Company>Lithnet</Company>
+		<Copyright>Copyright 2026 Lithnet Pty Ltd</Copyright>
+		<ProductName>Lithnet ECMA2 framework</ProductName>
+		<!-- VersionPrefix (NOT a fixed <Version>) so the same csproj supports three modes:
+		       * plain pack (no args)            -> 3.0.0                (VersionPrefix, no suffix)
+		       * CI  (-p:Version=3.0.<rev>)      -> 3.0.<rev>            (-p:Version= overrides VersionPrefix entirely)
+		       * local (-p:VersionSuffix=dev.N)  -> 3.0.0-dev.N          (prerelease, never collides in the NuGet cache)
+		     The three packages (this SDK, Hosting, and the holding package) all publish at the same version, and the
+		     holding package's default >= dependency ranges resolve lowest-applicable, so a consumer always gets a
+		     matching set. The counter-based local pack (src\build\pack-local.ps1) supplies VersionSuffix=dev.<N>. -->
+		<VersionPrefix>3.0.0</VersionPrefix>
+		<Authors>Lithnet</Authors>
+		<AutoIncrementPackageRevision>true</AutoIncrementPackageRevision>
+		<IsPackable>true</IsPackable>
+		<!-- The contracts/provider-author assembly. PackageId defaults to the project/assembly name
+		     (Lithnet.Ecma2Framework.Sdk); only the namespace differs (Lithnet.Ecma2Framework, set above). -->
+		<PackageLicenseExpression>MIT</PackageLicenseExpression>
+		<RepositoryUrl>https://github.com/lithnet/ecma2-framework</RepositoryUrl>
+		<SupportUrl>https://github.com/lithnet/ecma2-framework</SupportUrl>
+		<PublishRepositoryUrl>true</PublishRepositoryUrl>
+		<IncludeSymbols>true</IncludeSymbols>
+		<SymbolPackageFormat>snupkg</SymbolPackageFormat>
+		<EmbedUntrackedSources>true</EmbedUntrackedSources>
+		<Title>Lithnet ECMA2 Framework</Title>
+		<PackageProjectUrl>https://github.com/lithnet/ecma2-framework</PackageProjectUrl>
+		<GenerateDocumentationFile>True</GenerateDocumentationFile>
+	</PropertyGroup>
+
+	<PropertyGroup Condition="'$(TF_BUILD)' == 'true'">
+		<ContinuousIntegrationBuild>true</ContinuousIntegrationBuild>
+	</PropertyGroup>
+
+	<ItemGroup>
+		<Compile Remove="Enums\**" />
+		<Compile Remove="Properties\**" />
+		<EmbeddedResource Remove="Enums\**" />
+		<EmbeddedResource Remove="Properties\**" />
+		<None Remove="Enums\**" />
+		<None Remove="Properties\**" />
+	</ItemGroup>
+
+	<ItemGroup>
+		<!-- Host MMS assembly: referenced locally, never redistributed. The worker (net8) and the
+		     generated shim (net48) each supply their own copy at runtime, so Private=false here. -->
+		<Reference Include="Microsoft.MetadirectoryServicesEx">
+			<HintPath>lib\Microsoft.MetadirectoryServicesEx.dll</HintPath>
+			<Private>false</Private>
+		</Reference>
+	</ItemGroup>
+
+	<!--
+		The framework SDK references NO other Lithnet assembly. The password contract uses the host
+		Microsoft.MetadirectoryServices.CSEntry directly (reconstructed worker-side from the wire identity),
+		so the framework no longer depends on the Serialization wire assembly - that is pure shim<->worker
+		transport, invisible to a consumer of the SDK.
+	-->
+
+	<ItemGroup>
+		<PackageReference Include="Microsoft.Extensions.Options.ConfigurationExtensions" Version="10.0.9" />
+		<PackageReference Include="Microsoft.Extensions.Configuration" Version="10.0.9" />
+		<PackageReference Include="Microsoft.Extensions.DependencyInjection" Version="10.0.9" />
+		<PackageReference Include="Microsoft.Extensions.Logging" Version="10.0.9" />
+		<PackageReference Include="Microsoft.Extensions.Logging.Debug" Version="10.0.9" />
+		<PackageReference Include="Microsoft.Extensions.Logging.EventLog" Version="10.0.9" />
+		<PackageReference Include="System.Interactive.Async" Version="7.0.1" />
+		<PackageReference Include="Microsoft.Bcl.AsyncInterfaces" Version="10.0.9" />
+		<PackageReference Include="Microsoft.SourceLink.GitHub" Version="10.0.300" PrivateAssets="all" />
+		<PackageReference Include="System.Threading.Tasks.Dataflow" Version="10.0.9" />
+		<PackageReference Include="System.Text.Json" Version="10.0.9" />
+	</ItemGroup>
+
+	<!--
+		This project packs ONLY its lib\netstandard2.0\Lithnet.Ecma2Framework.Sdk.dll (the contracts assembly).
+		All the build\ host/shim toolchain (props, targets, Host.proj, Shim.proj, the PackagedMa template, the
+		source generator, and the shared shim + serialization sources) is shipped by the holding package,
+		Lithnet.Ecma2Framework (src\Lithnet.Ecma2Framework\), which owns the build\ folder and <None Pack>s those
+		files. The consumer installs the holding package; NuGet pulls this Sdk package as the compile reference
+		and the Hosting package transitively.
+	-->
+
+	<ItemGroup>
+		<AssemblyAttribute Include="System.Runtime.CompilerServices.InternalsVisibleTo">
+			<_Parameter1>Lithnet.Ecma2Framework.Tests</_Parameter1>
+		</AssemblyAttribute>
+		<AssemblyAttribute Include="System.Runtime.CompilerServices.InternalsVisibleTo">
+			<_Parameter1>Lithnet.Ecma2Framework.Hosting</_Parameter1>
+		</AssemblyAttribute>
+		<AssemblyAttribute Include="System.Runtime.CompilerServices.InternalsVisibleTo">
+			<_Parameter1>Lithnet.Ecma2Framework.Hosting.Tests</_Parameter1>
+		</AssemblyAttribute>
+	</ItemGroup>
+</Project>
+

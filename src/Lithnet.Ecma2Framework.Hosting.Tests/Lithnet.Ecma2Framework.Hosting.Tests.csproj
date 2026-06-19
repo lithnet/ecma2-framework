@@ -1,0 +1,48 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+	<PropertyGroup>
+		<TargetFramework>net8.0</TargetFramework>
+		<LangVersion>12</LangVersion>
+		<IsPackable>false</IsPackable>
+		<!-- NU1701: the host MMS reference is a net4x assembly; on net8 it loads via type-forwarding
+		     facades (proven dependable). MSB3270: processor-architecture mismatch warning for the same
+		     AnyCPU/net4x reference. Both are expected and suppressed. -->
+		<NoWarn>$(NoWarn);NU1701;MSB3270</NoWarn>
+	</PropertyGroup>
+
+	<ItemGroup>
+		<!-- Host MMS assembly: the worker tests name and construct real MMS types (MACapabilities,
+		     CSEntryChange, Schema, ConfigParameterKeyedCollection) at runtime in this net8 test host,
+		     so the DLL must be copied alongside the test output — Private=true. -->
+		<Reference Include="Microsoft.MetadirectoryServicesEx">
+			<HintPath>..\Lithnet.Ecma2Framework.Sdk\lib\Microsoft.MetadirectoryServicesEx.dll</HintPath>
+			<Private>true</Private>
+		</Reference>
+	</ItemGroup>
+
+	<ItemGroup>
+		<!-- Golden reference: a real Packaged-MA manifest produced by FIM's mapackager (omit-schema)
+		     from the all-params probe MA. PackagedMaBuilderTests pins the builder output against it. -->
+		<None Include="Manifest\packaged.golden.xml">
+			<CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+		</None>
+	</ItemGroup>
+
+	<ItemGroup>
+		<PackageReference Include="Microsoft.NET.Test.Sdk" Version="18.6.0" />
+		<PackageReference Include="MSTest.TestAdapter" Version="4.2.3" />
+		<PackageReference Include="MSTest.TestFramework" Version="4.2.3" />
+	</ItemGroup>
+
+	<ItemGroup>
+		<ProjectReference Include="..\Lithnet.Ecma2Framework.Hosting\Lithnet.Ecma2Framework.Hosting.csproj" />
+		<ProjectReference Include="..\Lithnet.Ecma2Framework.Sdk\Lithnet.Ecma2Framework.Sdk.csproj" />
+		<ProjectReference Include="..\Lithnet.Ecma2Framework.TestConsumer\Lithnet.Ecma2Framework.TestConsumer.csproj" />
+		<!-- These tests use the internal Serialization wire types (CSEntryIdentity, the *Serializable DTOs) via
+		     the InternalsVisibleTo grant in that project. Hosting bundles Serialization as a PRIVATE implementation
+		     assembly (PrivateAssets=all), so its compile assets no longer flow transitively through Hosting;
+		     reference it directly here, as a genuine direct consumer of those types. -->
+		<ProjectReference Include="..\Lithnet.Ecma2Framework.Serialization\Lithnet.Ecma2Framework.Serialization.csproj" />
+	</ItemGroup>
+
+</Project>

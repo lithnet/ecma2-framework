@@ -1,0 +1,34 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+	<PropertyGroup>
+		<TargetFramework>net8.0</TargetFramework>
+		<LangVersion>12</LangVersion>
+		<IsPackable>false</IsPackable>
+		<!-- NU1701: the host MMS reference is a net4x assembly; on net8 it loads via type-forwarding
+		     facades (proven dependable). MSB3270: processor-architecture mismatch warning for the same
+		     AnyCPU/net4x reference. Both are expected and suppressed. -->
+		<NoWarn>$(NoWarn);NU1701;MSB3270</NoWarn>
+	</PropertyGroup>
+
+	<ItemGroup>
+		<!-- Host MMS assembly: the test providers name and construct real MMS types (Schema, SchemaType,
+		     ConfigParameterKeyedCollection) at runtime in this net8 test host, so the DLL must be copied
+		     alongside the test output — Private=true. Referenced locally, never redistributed. -->
+		<Reference Include="Microsoft.MetadirectoryServicesEx">
+			<HintPath>..\Lithnet.Ecma2Framework.Sdk\lib\Microsoft.MetadirectoryServicesEx.dll</HintPath>
+			<Private>true</Private>
+		</Reference>
+	</ItemGroup>
+
+	<ItemGroup>
+		<PackageReference Include="Microsoft.NET.Test.Sdk" Version="18.6.0" />
+		<PackageReference Include="MSTest.TestAdapter" Version="4.2.3" />
+		<PackageReference Include="MSTest.TestFramework" Version="4.2.3" />
+		<PackageReference Include="Microsoft.Extensions.DependencyInjection" Version="10.0.9" />
+	</ItemGroup>
+
+	<ItemGroup>
+		<ProjectReference Include="..\Lithnet.Ecma2Framework.Sdk\Lithnet.Ecma2Framework.Sdk.csproj" />
+	</ItemGroup>
+
+</Project>

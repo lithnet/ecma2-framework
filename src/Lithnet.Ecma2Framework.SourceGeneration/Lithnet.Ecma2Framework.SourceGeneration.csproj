@@ -23,11 +23,8 @@
 	</PropertyGroup>
 
 	<ItemGroup>
+		<None Remove="Templates\*" />
 		<EmbeddedResource Include="Templates\*" />
-	</ItemGroup>
-
-	<ItemGroup>
-	  <None Remove="Templates\Ecma2GeneratedConfigParametersProvider.txt" />
 	</ItemGroup>
 
 	<ItemGroup>

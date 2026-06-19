@@ -14,7 +14,7 @@ variables:
   - name: buildConfiguration
     value: 'Release'
   - name: build.version.major
-    value: 2
+    value: 3
   - name: build.version.minor
     value: 0
   - name: build.version.revision
@@ -48,7 +48,12 @@ stages:
         inputs:
           command: build
           arguments: '-c $(buildConfiguration) -p:Version=$(build.version) -p:GeneratePackageOnBuild=false'
-          projects: 'src/Lithnet.Ecma2Framework/Lithnet.Ecma2Framework.csproj'
+          # Build the whole solution so every package's output exists before the (nobuild:true) pack steps:
+          # the Sdk and Hosting packages each ship their own assembly, and the holding package bundles
+          # build\tools\generator.dll (the generator project's output) plus the build\ toolchain. The Hosting
+          # runtime is a package DEPENDENCY of the holding package, not a loose file, so it resolves transitively
+          # for the consumer rather than being packed inline.
+          projects: 'src/Lithnet.Ecma2Framework.sln'
 
       - template: templates/codesign.yaml@release_tools
         parameters:
@@ -58,8 +63,36 @@ stages:
           azureSubscription: $(azure.subscription)
           description: 'Lithnet ECMA2 Framework'
 
+      # Pack ALL THREE packages: the contracts SDK (Lithnet.Ecma2Framework.Sdk), the host runtime
+      # (Lithnet.Ecma2Framework.Hosting), and the consumer-facing holding package (Lithnet.Ecma2Framework). The
+      # holding package declares >= dependencies on the Sdk and Hosting packages; the consumer installs the
+      # holding package and NuGet resolves the matching Sdk (compile reference) + Hosting closure transitively.
+      # All three are packed at the identical version (byEnvVar) and the >= ranges resolve lowest-applicable, so
+      # the consumer always gets a matching Sdk + Hosting set - no exact pins, no version stamping.
       - task: DotNetCoreCLI@2
-        displayName: dotnet pack
+        displayName: dotnet pack (SDK)
+        inputs:
+          command: 'pack'
+          packagesToPack: 'src/Lithnet.Ecma2Framework.Sdk/Lithnet.Ecma2Framework.Sdk.csproj'
+          packDirectory: '$(Build.ArtifactStagingDirectory)\cp'
+          nobuild: true
+          includesymbols: true
+          versioningScheme: 'byEnvVar'
+          versionEnvVar: 'build.version'
+
+      - task: DotNetCoreCLI@2
+        displayName: dotnet pack (Hosting)
+        inputs:
+          command: 'pack'
+          packagesToPack: 'src/Lithnet.Ecma2Framework.Hosting/Lithnet.Ecma2Framework.Hosting.csproj'
+          packDirectory: '$(Build.ArtifactStagingDirectory)\cp'
+          nobuild: true
+          includesymbols: true
+          versioningScheme: 'byEnvVar'
+          versionEnvVar: 'build.version'
+
+      - task: DotNetCoreCLI@2
+        displayName: dotnet pack (holding)
         inputs:
           command: 'pack'
           packagesToPack: 'src/Lithnet.Ecma2Framework/Lithnet.Ecma2Framework.csproj'

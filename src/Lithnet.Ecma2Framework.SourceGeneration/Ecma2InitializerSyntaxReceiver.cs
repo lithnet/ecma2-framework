@@ -68,6 +68,8 @@ namespace Lithnet.Ecma2Framework
 
         public bool HasObjectExportProvider { get; set; }
 
+        public bool HasNonPublicStartupCandidate { get; set; }
+
         /// <summary>
         /// Called for every syntax node in the compilation, we can inspect the nodes and save any information useful for generation
         /// </summary>
@@ -78,115 +80,164 @@ namespace Lithnet.Ecma2Framework
                 if (context.Node is ClassDeclarationSyntax classDeclarationSyntax)
                 {
                     INamedTypeSymbol declaredSymbol = context.SemanticModel.GetDeclaredSymbol(classDeclarationSyntax) as INamedTypeSymbol;
-
-                    if (declaredSymbol == null || declaredSymbol.IsStatic || declaredSymbol.IsAbstract)
-                    {
-                        return;
-                    }
-
-                    string fullyQualifiedName = declaredSymbol.ToDisplayString(fullTypeNameFormat);
-
-                    // Each interface is checked independently. A single class is permitted to implement
-                    // more than one framework interface (for example a startup class that is also the
-                    // capabilities provider, or a provider that handles both import and export), so these
-                    // must not be chained with 'else if' or the second and subsequent roles are missed.
-                    if (this.HasInterface(declaredSymbol, context, InterfaceIEcmaStartup))
-                    {
-                        if (this.HasStartupClass)
-                        {
-                            Location startupLocation = declaredSymbol.Locations.Length > 0 ? declaredSymbol.Locations[0] : Location.None;
-                            this.Diagnostics.Add(Diagnostic.Create(new DiagnosticDescriptor("ECMA2010", "Multiple startup classes were found", $"More than one class implementing IEcmaStartup was found ('{this.StartupClassName}' and '{fullyQualifiedName}'). Only a single startup class is permitted.", "Ecma2Framework", DiagnosticSeverity.Error, true), startupLocation));
-                        }
-
-                        this.HasStartupClass = true;
-                        this.StartupClassName = fullyQualifiedName;
-                    }
-
-                    if (this.HasInterface(declaredSymbol, context, InterfaceICapabilitiesProvider))
-                    {
-                        this.HasCapabilityProvider = true;
-                    }
-
-                    if (this.HasInterface(declaredSymbol, context, InterfaceIConfigParametersProvider))
-                    {
-                        this.HasConfigProvider = true;
-                    }
-
-                    if (this.HasInterface(declaredSymbol, context, InterfaceIObjectExportProvider))
-                    {
-                        this.HasObjectExportProvider = true;
-                    }
-
-                    if (this.HasInterface(declaredSymbol, context, InterfaceIObjectImportProvider))
-                    {
-                        this.HasObjectImportProvider = true;
-                    }
-
-                    if (this.HasInterface(declaredSymbol, context, InterfaceISchemaProvider))
-                    {
-                        this.HasSchemaProvider = true;
-                    }
-
-                    foreach (var attribute in declaredSymbol.GetAttributes())
-                    {
-                        if (attribute.AttributeClass == null)
-                        {
-                            continue;
-                        }
-
-                        string attributeName = attribute.AttributeClass.ToDisplayString(fullTypeNameFormat);
-                        DiscoveredConfigClass configClass = new DiscoveredConfigClass();
-
-                        switch (attributeName)
-                        {
-                            case AttributeConfigPageConnectivity:
-                                configClass.Page = ConfigParameterPage.Connectivity;
-                                break;
-
-                            case AttributeConfigPageCapability:
-                                configClass.Page = ConfigParameterPage.Capabilities;
-                                break;
-
-                            case AttributeConfigPageGlobal:
-                                configClass.Page = ConfigParameterPage.Global;
-                                break;
-
-                            case AttributeConfigPagePartition:
-                                configClass.Page = ConfigParameterPage.Partition;
-                                break;
-
-                            case AttributeConfigPageRunStep:
-                                configClass.Page = ConfigParameterPage.RunStep;
-                                break;
-
-                            case AttributeConfigPageSchema:
-                                configClass.Page = ConfigParameterPage.Schema;
-                                break;
-
-                            default:
-                                continue;
-                        }
-
-                        configClass.ClassSymbol = declaredSymbol;
-                        configClass.ConfigAttribute = attribute;
-                        configClass.SectionName = attribute.ConstructorArguments.Length > 0 ? attribute.ConstructorArguments[0].Value?.ToString() : null;
-                        configClass.ClassName = declaredSymbol.ToDisplayString(fullTypeNameFormat);
-                        if (string.IsNullOrWhiteSpace(configClass.SectionName))
-                        {
-                            Location location = declaredSymbol.Locations.Length > 0 ? declaredSymbol.Locations[0] : Location.None;
-                            this.Diagnostics.Add(Diagnostic.Create(new DiagnosticDescriptor("ECMA2008", "The configuration section name could not be determined", $"The class '{configClass.ClassName}' is decorated with [{attribute.AttributeClass.Name}], but the configuration section name could not be read at compile time, so the page was not generated. This happens when the attribute is applied using a parameterless constructor overload, because a source generator reads constructor arguments from metadata and a parameterless overload supplies none. Define the section name as a constructor parameter with a default value (e.g. 'public {attribute.AttributeClass.Name}(string name = \"Ecma:Section\")'), or apply the attribute with an explicit name such as [{attribute.AttributeClass.Name.Replace("Attribute", "")}(\"Ecma:Section\")].", "Ecma2Framework", DiagnosticSeverity.Error, true), location));
-                            continue;
-                        }
-
-                        this.VisitConfigClassAttribute(configClass);
-                        this.DiscoveredConfigClasses.Add(configClass);
-                    }
+                    this.ProcessType(declaredSymbol, context.SemanticModel.Compilation);
                 }
             }
             catch (Exception ex)
             {
                 this.Diagnostics.Add(Diagnostic.Create(new DiagnosticDescriptor("ECMA2000", "An unexpected error occurred", $"An unexpected error occurred: {ex}", "Ecma2Framework", DiagnosticSeverity.Error, true), Location.None));
             }
+        }
+
+        /// <summary>
+        /// Inspects a single candidate type for the framework roles (IEcmaStartup, the provider interfaces) and the
+        /// [*Configuration] attribute classes, recording what it finds. The logic is entirely symbol-based, so it is
+        /// identical whether <paramref name="declaredSymbol"/> originates from the current compilation's source or
+        /// from a referenced assembly's metadata. <paramref name="compilation"/> is used only to resolve the
+        /// framework interface/attribute names by metadata name.
+        /// </summary>
+        public void ProcessType(INamedTypeSymbol declaredSymbol, Compilation compilation)
+        {
+            if (declaredSymbol == null || declaredSymbol.IsStatic || declaredSymbol.IsAbstract)
+            {
+                return;
+            }
+
+            string fullyQualifiedName = declaredSymbol.ToDisplayString(fullTypeNameFormat);
+
+            if (this.HasInterface(declaredSymbol, compilation, InterfaceIEcmaStartup))
+            {
+                if (this.HasStartupClass)
+                {
+                    Location startupLocation = declaredSymbol.Locations.Length > 0 ? declaredSymbol.Locations[0] : Location.None;
+                    this.Diagnostics.Add(Diagnostic.Create(new DiagnosticDescriptor("ECMA2010", "Multiple startup classes were found", $"More than one class implementing IEcmaStartup was found ('{this.StartupClassName}' and '{fullyQualifiedName}'). Only a single startup class is permitted.", "Ecma2Framework", DiagnosticSeverity.Error, true), startupLocation));
+                }
+
+                this.HasStartupClass = true;
+                this.StartupClassName = fullyQualifiedName;
+            }
+
+            if (this.HasInterface(declaredSymbol, compilation, InterfaceICapabilitiesProvider))
+            {
+                this.HasCapabilityProvider = true;
+            }
+
+            if (this.HasInterface(declaredSymbol, compilation, InterfaceIConfigParametersProvider))
+            {
+                this.HasConfigProvider = true;
+            }
+
+            if (this.HasInterface(declaredSymbol, compilation, InterfaceIObjectExportProvider))
+            {
+                this.HasObjectExportProvider = true;
+            }
+
+            if (this.HasInterface(declaredSymbol, compilation, InterfaceIObjectImportProvider))
+            {
+                this.HasObjectImportProvider = true;
+            }
+
+            if (this.HasInterface(declaredSymbol, compilation, InterfaceISchemaProvider))
+            {
+                this.HasSchemaProvider = true;
+            }
+
+            foreach (var attribute in declaredSymbol.GetAttributes())
+            {
+                if (attribute.AttributeClass == null)
+                {
+                    continue;
+                }
+
+                string attributeName = attribute.AttributeClass.ToDisplayString(fullTypeNameFormat);
+                DiscoveredConfigClass configClass = new DiscoveredConfigClass();
+
+                switch (attributeName)
+                {
+                    case AttributeConfigPageConnectivity:
+                        configClass.Page = ConfigParameterPage.Connectivity;
+                        break;
+
+                    case AttributeConfigPageCapability:
+                        configClass.Page = ConfigParameterPage.Capabilities;
+                        break;
+
+                    case AttributeConfigPageGlobal:
+                        configClass.Page = ConfigParameterPage.Global;
+                        break;
+
+                    case AttributeConfigPagePartition:
+                        configClass.Page = ConfigParameterPage.Partition;
+                        break;
+
+                    case AttributeConfigPageRunStep:
+                        configClass.Page = ConfigParameterPage.RunStep;
+                        break;
+
+                    case AttributeConfigPageSchema:
+                        configClass.Page = ConfigParameterPage.Schema;
+                        break;
+
+                    default:
+                        continue;
+                }
+
+                configClass.ClassSymbol = declaredSymbol;
+                configClass.ConfigAttribute = attribute;
+                configClass.SectionName = attribute.ConstructorArguments.Length > 0 ? attribute.ConstructorArguments[0].Value?.ToString() : null;
+                configClass.ClassName = declaredSymbol.ToDisplayString(fullTypeNameFormat);
+                if (string.IsNullOrWhiteSpace(configClass.SectionName))
+                {
+                    Location location = declaredSymbol.Locations.Length > 0 ? declaredSymbol.Locations[0] : Location.None;
+                    this.Diagnostics.Add(Diagnostic.Create(new DiagnosticDescriptor("ECMA2008", "The configuration section name could not be determined", $"The class '{configClass.ClassName}' is decorated with [{attribute.AttributeClass.Name}], but the configuration section name could not be read at compile time, so the page was not generated. This happens when the attribute is applied using a parameterless constructor overload, because a source generator reads constructor arguments from metadata and a parameterless overload supplies none. Define the section name as a constructor parameter with a default value (e.g. 'public {attribute.AttributeClass.Name}(string name = \"Ecma:Section\")'), or apply the attribute with an explicit name such as [{attribute.AttributeClass.Name.Replace("Attribute", "")}(\"Ecma:Section\")].", "Ecma2Framework", DiagnosticSeverity.Error, true), location));
+                    continue;
+                }
+
+                this.VisitConfigClassAttribute(configClass);
+                this.DiscoveredConfigClasses.Add(configClass);
+            }
+        }
+
+        /// <summary>
+        /// Returns true when the type participates in the framework contract in a way the GENERATED HOST CODE names
+        /// directly across the assembly boundary - it implements IEcmaStartup or carries a [*Configuration] attribute.
+        /// The referenced-assembly discovery path uses this to flag a participant that is not public (and therefore
+        /// unusable from the separate host assembly) with a clear ECMA2013 diagnostic, instead of silently skipping it
+        /// (which would surface only as a misleading "no startup found") or emitting code that fails with CS0122.
+        /// </summary>
+        public bool IsHostReferencedParticipant(INamedTypeSymbol type, Compilation compilation)
+        {
+            if (type == null)
+            {
+                return false;
+            }
+
+            if (this.HasInterface(type, compilation, InterfaceIEcmaStartup))
+            {
+                return true;
+            }
+
+            foreach (var attribute in type.GetAttributes())
+            {
+                string attributeName = attribute.AttributeClass?.ToDisplayString(fullTypeNameFormat);
+                if (attributeName == AttributeConfigPageConnectivity ||
+                    attributeName == AttributeConfigPageCapability ||
+                    attributeName == AttributeConfigPageGlobal ||
+                    attributeName == AttributeConfigPagePartition ||
+                    attributeName == AttributeConfigPageRunStep ||
+                    attributeName == AttributeConfigPageSchema)
+                {
+                    return true;
+                }
+            }
+
+            return false;
+        }
+
+        /// <summary>True when the type implements IEcmaStartup, resolved against the supplied compilation.</summary>
+        public bool ImplementsEcmaStartup(INamedTypeSymbol type, Compilation compilation)
+        {
+            return this.HasInterface(type, compilation, InterfaceIEcmaStartup);
         }
 
         private void VisitConfigClassAttribute(DiscoveredConfigClass configClass)
@@ -404,11 +455,12 @@ namespace Lithnet.Ecma2Framework
             return defaultValue;
         }
 
-        /// <summary>Indicates whether or not the class has a specific interface.</summary>
-        /// <returns>Whether or not the SyntaxList contains the attribute.</returns>
-        private bool HasInterface(INamedTypeSymbol declaredTypeSymbol, GeneratorSyntaxContext context, string interfaceName)
+        /// <summary>Indicates whether the type implements the named framework interface.</summary>
+        /// <returns>True when <paramref name="declaredTypeSymbol"/> implements the interface named by
+        /// <paramref name="interfaceName"/>, resolved against <paramref name="compilation"/>.</returns>
+        private bool HasInterface(INamedTypeSymbol declaredTypeSymbol, Compilation compilation, string interfaceName)
         {
-            var namedTypeSymbol = context.SemanticModel.Compilation.GetTypeByMetadataName(interfaceName);
+            var namedTypeSymbol = compilation.GetTypeByMetadataName(interfaceName);
 
             foreach (var interfaceTypeSymbol in declaredTypeSymbol.AllInterfaces)
             {
