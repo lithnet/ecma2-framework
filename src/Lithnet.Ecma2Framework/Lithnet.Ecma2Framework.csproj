@@ -29,6 +29,10 @@
 		<!-- Project name = assembly name = package id = Lithnet.Ecma2Framework (consistent). The (empty) compile
 		     output is never packed (IncludeBuildOutput=false) and never referenced. -->
 		<IncludeBuildOutput>false</IncludeBuildOutput>
+		<!-- This meta package has no assembly and therefore no symbols. Stated explicitly so the no-symbols intent
+		     is clear: a pack with the include-symbols flag set would otherwise emit a stray legacy .symbols.nupkg
+		     here (which the Azure feed rejects). The Sdk and Hosting packages, which have assemblies, emit .snupkg. -->
+		<IncludeSymbols>false</IncludeSymbols>
 		<!-- A holding package has no public surface; suppress the doc-file and skip the default .cs glob (none). -->
 		<EnableDefaultCompileItems>false</EnableDefaultCompileItems>
 		<GenerateDocumentationFile>false</GenerateDocumentationFile>
@@ -52,7 +56,7 @@
 		<VersionPrefix>3.0.0</VersionPrefix>
 		<Description>The Lithnet ECMA2 framework provides a base for creating high performance multi-threaded management agents for Microsoft Identity Manager. Install this package to author a management agent: it pulls the SDK contracts and the host runtime, and drives the out-of-process host + shim build.</Description>
 		<Company>Lithnet</Company>
-		<Copyright>Copyright 2026 Lithnet Pty Ltd</Copyright>
+		<Copyright>Copyright $([System.DateTime]::Now.Year) Lithnet Pty Ltd</Copyright>
 		<ProductName>Lithnet ECMA2 framework</ProductName>
 		<Authors>Lithnet</Authors>
 		<PackageLicenseExpression>MIT</PackageLicenseExpression>

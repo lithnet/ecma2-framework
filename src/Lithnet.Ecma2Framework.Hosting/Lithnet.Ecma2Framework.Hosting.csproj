@@ -37,7 +37,7 @@
 
 		<Description>The out-of-process host runtime for the Lithnet ECMA2 framework. Referenced by the framework's packaged host build; not referenced directly by a management agent consumer.</Description>
 		<Company>Lithnet</Company>
-		<Copyright>Copyright 2026 Lithnet Pty Ltd</Copyright>
+		<Copyright>Copyright $([System.DateTime]::Now.Year) Lithnet Pty Ltd</Copyright>
 		<ProductName>Lithnet ECMA2 framework</ProductName>
 		<Authors>Lithnet</Authors>
 		<PackageLicenseExpression>MIT</PackageLicenseExpression>

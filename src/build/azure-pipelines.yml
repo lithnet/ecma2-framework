@@ -86,7 +86,6 @@ stages:
           packagesToPack: 'src/Lithnet.Ecma2Framework.Sdk/Lithnet.Ecma2Framework.Sdk.csproj'
           packDirectory: '$(Build.ArtifactStagingDirectory)\cp'
           nobuild: true
-          includesymbols: true
           versioningScheme: 'byEnvVar'
           versionEnvVar: 'build.version'
 
@@ -97,7 +96,6 @@ stages:
           packagesToPack: 'src/Lithnet.Ecma2Framework.Hosting/Lithnet.Ecma2Framework.Hosting.csproj'
           packDirectory: '$(Build.ArtifactStagingDirectory)\cp'
           nobuild: true
-          includesymbols: true
           versioningScheme: 'byEnvVar'
           versionEnvVar: 'build.version'
 
@@ -108,7 +106,6 @@ stages:
           packagesToPack: 'src/Lithnet.Ecma2Framework/Lithnet.Ecma2Framework.csproj'
           packDirectory: '$(Build.ArtifactStagingDirectory)\cp'
           nobuild: true
-          includesymbols: true
           versioningScheme: 'byEnvVar'
           versionEnvVar: 'build.version'
 

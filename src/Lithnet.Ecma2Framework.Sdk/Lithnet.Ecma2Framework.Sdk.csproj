@@ -1,4 +1,4 @@
-﻿<Project Sdk="Microsoft.NET.Sdk">
+<Project Sdk="Microsoft.NET.Sdk">
 	<PropertyGroup>
 		<TargetFramework>netstandard2.0</TargetFramework>
 		<OutputType>Library</OutputType>
@@ -26,7 +26,7 @@
 	<PropertyGroup>
 		<Description>The Lithnet ECMA2 framework provides a base for creating high performance multi-threaded management agents for Microsoft Identity Manager</Description>
 		<Company>Lithnet</Company>
-		<Copyright>Copyright 2026 Lithnet Pty Ltd</Copyright>
+		<Copyright>Copyright $([System.DateTime]::Now.Year) Lithnet Pty Ltd</Copyright>
 		<ProductName>Lithnet ECMA2 framework</ProductName>
 		<!-- VersionPrefix (NOT a fixed <Version>) so the same csproj supports three modes:
 		       * plain pack (no args)            -> 3.0.0                (VersionPrefix, no suffix)
