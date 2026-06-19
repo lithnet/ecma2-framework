@@ -48,12 +48,22 @@ stages:
         inputs:
           command: build
           arguments: '-c $(buildConfiguration) -p:Version=$(build.version) -p:GeneratePackageOnBuild=false'
-          # Build the whole solution so every package's output exists before the (nobuild:true) pack steps:
-          # the Sdk and Hosting packages each ship their own assembly, and the holding package bundles
-          # build\tools\generator.dll (the generator project's output) plus the build\ toolchain. The Hosting
-          # runtime is a package DEPENDENCY of the holding package, not a loose file, so it resolves transitively
-          # for the consumer rather than being packed inline.
-          projects: 'src/Lithnet.Ecma2Framework.sln'
+          # Build only the projects whose output the (nobuild:true) pack steps below consume - not the whole
+          # solution (which also builds the example, test, and sample/consumer projects we never ship):
+          #   * Sdk + Hosting     - each packs its own assembly; Hosting transitively builds Serialization
+          #                         (bundled into Hosting.dll), and both transitively build the Sdk.
+          #   * holding           - packs no assembly of its own, but pack still needs its build/restore assets;
+          #                         its ProjectReferences cover Sdk + Hosting.
+          #   * SourceGeneration  - the generator DLL the holding package bundles under build\tools\. It is
+          #                         referenced as a loose <None> file from its bin output, NOT as a
+          #                         ProjectReference, so it must be named explicitly or it is never built.
+          # The shim + serialization sources the holding package ships are packed as .cs source, so those
+          # projects need no build here.
+          projects: |
+            src/Lithnet.Ecma2Framework.Sdk/Lithnet.Ecma2Framework.Sdk.csproj
+            src/Lithnet.Ecma2Framework.Hosting/Lithnet.Ecma2Framework.Hosting.csproj
+            src/Lithnet.Ecma2Framework.SourceGeneration/Lithnet.Ecma2Framework.SourceGeneration.csproj
+            src/Lithnet.Ecma2Framework/Lithnet.Ecma2Framework.csproj
 
       - template: templates/codesign.yaml@release_tools
         parameters:
