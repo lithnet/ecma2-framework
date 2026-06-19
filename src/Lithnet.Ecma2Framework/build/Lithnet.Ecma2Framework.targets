@@ -556,8 +556,11 @@
 		<Error Condition="'$(Ecma2GeneratePackagedMa)' == 'true' and '$(Ecma2PackagedMaListName)' == ''"
 		       Text="Ecma2GeneratePackagedMa is true but Ecma2PackagedMaListName is empty. Set the list name in Lithnet.Ecma2Framework.PackagedMa.props." />
 
+		<!-- The build agent has no MIM install, so point the worker's MMS resolver at the compile-time MMS
+		     assembly (the consumer's own reference, present on the agent) for this build-time run. -->
 		<Exec Condition="'$(Ecma2GeneratePackagedMa)' == 'true'"
 		      ConsoleToMSBuild="true"
+		      EnvironmentVariables="LITHNET_ECMA2_MMS_PATH=$(Ecma2HostMmsPath)"
 		      Command="&quot;$(PublishDir)$(Ecma2HostExeName).exe&quot; --emit-manifest &quot;$(PublishDir)ecma2\$(Ecma2ShimAssemblyName).PackagedMA.xml&quot; --ma-id &quot;$(Ecma2PackagedManagementAgentId)&quot; --company &quot;$(Ecma2PackagedMaCompany)&quot; --listname &quot;$(Ecma2PackagedMaListName)&quot; --help-text &quot;$(Ecma2PackagedMaHelpText)&quot; --shim-name &quot;$(Ecma2ShimAssemblyName).dll&quot; --assembly-version &quot;$(Ecma2ManifestAssemblyVersion)&quot;">
 			<Output TaskParameter="ConsoleOutput" ItemName="Ecma2PublishManifestEmitOutput" />
 		</Exec>
@@ -652,8 +655,11 @@
 		<!-- ON + valid: run the worker exe (at the output root) in emit-manifest mode. The manifest is written
 		     into the 'ecma2\' subfolder next to the shim, named '<shim>.PackagedMA.xml'. All args are quoted
 		     because paths/values may contain spaces; a non-zero exit fails the build. -->
+		<!-- The build agent has no MIM install, so point the worker's MMS resolver at the compile-time MMS
+		     assembly (the consumer's own reference, present on the agent) for this build-time run. -->
 		<Exec Condition="'$(Ecma2GeneratePackagedMa)' == 'true'"
 		      ConsoleToMSBuild="true"
+		      EnvironmentVariables="LITHNET_ECMA2_MMS_PATH=$(Ecma2HostMmsPath)"
 		      Command="&quot;$(OutDir)$(Ecma2HostExeName).exe&quot; --emit-manifest &quot;$(OutDir)ecma2\$(Ecma2ShimAssemblyName).PackagedMA.xml&quot; --ma-id &quot;$(Ecma2PackagedManagementAgentId)&quot; --company &quot;$(Ecma2PackagedMaCompany)&quot; --listname &quot;$(Ecma2PackagedMaListName)&quot; --help-text &quot;$(Ecma2PackagedMaHelpText)&quot; --shim-name &quot;$(Ecma2ShimAssemblyName).dll&quot; --assembly-version &quot;$(Ecma2ManifestAssemblyVersion)&quot;">
 			<Output TaskParameter="ConsoleOutput" ItemName="Ecma2ManifestEmitOutput" />
 		</Exec>
