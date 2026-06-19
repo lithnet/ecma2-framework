@@ -43,6 +43,11 @@ stages:
       steps:
       - template: templates/checkout.yaml@release_tools
 
+      # Restore now reaches LithnetPrivatePackages for Lithnet.MIM.MetadirectoryServicesEx (the compile-only MMS
+      # reference). Authenticate the feed declared in src/nuget.config before the build's implicit restore.
+      - task: NuGetAuthenticate@1
+        displayName: Authenticate to the Lithnet private feed
+
       - task: DotNetCoreCLI@2
         displayName: dotnet build
         inputs:
