@@ -27,6 +27,9 @@
 		<PackageReference Include="MSTest.TestAdapter" Version="4.2.3" />
 		<PackageReference Include="MSTest.TestFramework" Version="4.2.3" />
 		<!-- System.Reflection.Metadata ships in the net8 shared framework; no PackageReference needed. -->
+		<!-- Supplies Microsoft.MetadirectoryServicesEx.dll into this test's output so the shim build it drives
+		     can be handed a real Ecma2HostMmsPath. -->
+		<PackageReference Include="Lithnet.MIM.MetadirectoryServicesEx" Version="4.3.1935" PrivateAssets="all" />
 	</ItemGroup>
 
 </Project>

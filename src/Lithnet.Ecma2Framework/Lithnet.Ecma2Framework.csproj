@@ -50,10 +50,10 @@
 	<PropertyGroup>
 		<IsPackable>true</IsPackable>
 		<!-- PackageId defaults to the project/assembly name: Lithnet.Ecma2Framework. -->
-		<!-- VersionPrefix (NOT a fixed <Version>): plain pack -> 3.0.0; CI -p:Version=3.0.<rev> overrides it
-		     entirely; local -p:VersionSuffix=dev.<N> -> 3.0.0-dev.<N>. Published at the same version as the Sdk and
-		     Hosting packages it depends on. -->
-		<VersionPrefix>3.0.0</VersionPrefix>
+		<!-- VersionPrefix (NOT a fixed <Version>): plain pack -> <VersionPrefix>; CI -p:Version=X.Y.Z overrides it
+		     entirely; local -p:VersionSuffix=dev.<N> -> <VersionPrefix>-dev.<N>. Published at the same version as the
+		     Sdk and Hosting packages it depends on. -->
+		<VersionPrefix>3.0.5</VersionPrefix>
 		<Description>The Lithnet ECMA2 framework provides a base for creating high performance multi-threaded management agents for Microsoft Identity Manager. Install this package to author a management agent: it pulls the SDK contracts and the host runtime, and drives the out-of-process host + shim build.</Description>
 		<Company>Lithnet</Company>
 		<Copyright>Copyright $([System.DateTime]::Now.Year) Lithnet Pty Ltd</Copyright>

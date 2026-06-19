@@ -10,15 +10,7 @@
     <NoWarn>$(NoWarn);NU1701;MSB3270</NoWarn>
   </PropertyGroup>
   <ItemGroup>
-    <!-- Host MMS assembly: the consumer's providers name real MMS types (Schema, CSEntryChange,
-         MACapabilities, etc.). This project is a Library; the framework targets build the out-of-process
-         host exe (Ecma2Host.exe) as a separate build unit that ProjectReferences this consumer and inherits
-         this MMS reference through its transitive closure — Private=true so the facade DLL is carried into
-         the host's output. -->
-    <Reference Include="Microsoft.MetadirectoryServicesEx">
-      <HintPath>..\Lithnet.Ecma2Framework.Sdk\lib\Microsoft.MetadirectoryServicesEx.dll</HintPath>
-      <Private>true</Private>
-    </Reference>
+    <PackageReference Include="Lithnet.MIM.MetadirectoryServicesEx" Version="4.3.1935" PrivateAssets="all" ExcludeAssets="runtime" />
   </ItemGroup>
   <ItemGroup>
     <!-- Framework (provider/startup contracts) + Hosting (WorkerEntryPoint runtime). The generated worker

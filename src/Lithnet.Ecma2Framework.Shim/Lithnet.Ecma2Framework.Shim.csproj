@@ -28,12 +28,7 @@
 	</ItemGroup>
 
 	<ItemGroup>
-		<!-- Host MMS assembly: referenced locally, never redistributed by NuGet. The HintPath is
-		     relative to THIS project; a generated shim supplies its own MMS reference. -->
-		<Reference Include="Microsoft.MetadirectoryServicesEx">
-			<HintPath>..\Lithnet.Ecma2Framework.Sdk\lib\Microsoft.MetadirectoryServicesEx.dll</HintPath>
-			<Private>True</Private>
-		</Reference>
+		<PackageReference Include="Lithnet.MIM.MetadirectoryServicesEx" Version="4.3.1935" PrivateAssets="all" ExcludeAssets="runtime" />
 	</ItemGroup>
 
 	<!-- Shared shim source set: the compile glob, the CsWin32 input file, and the CsWin32

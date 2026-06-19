@@ -1,18 +1,17 @@
 <#
 .SYNOPSIS
-    Builds and packs the three Lithnet ECMA2 framework packages as a LOCAL prerelease (3.0.0-dev.<N>) into the
-    repo's local NuGet feed, bumping a persistent counter on every run.
+    Builds and packs the three Lithnet ECMA2 framework packages as a LOCAL prerelease (<VersionPrefix>-dev.<N>) into
+    the repo's local NuGet feed, bumping a persistent counter on every run.
 
 .DESCRIPTION
-    The three packable framework projects carry a <VersionPrefix>3.0.0</VersionPrefix> (no fixed <Version>). A plain
-    pack therefore produces 3.0.0, and CI's -p:Version=3.0.<rev> overrides it entirely. This script supplies
-    -p:VersionSuffix=dev.<N>, producing a prerelease 3.0.0-dev.<N>.
+    The three packable framework projects carry a <VersionPrefix> (no fixed <Version>); this script reads that prefix
+    from the holding project and supplies -p:VersionSuffix=dev.<N>, producing a prerelease <VersionPrefix>-dev.<N>.
 
     The point is the local dev loop: NuGet extracts a given package id+version into the global cache exactly once and
-    never re-extracts an already-present version. A FIXED 3.0.0 therefore caches the first local pack forever, so a
-    framework change never reaches a package-consuming consumer (e.g. the Okta MA) until the cache is manually evicted.
-    A monotonically increasing -dev.<N> sidesteps the cache entirely: every pack is a NEW version the consumer's
-    floating reference (3.0.0-dev.*) re-resolves on a normal `dotnet build`, with no cache games.
+    never re-extracts an already-present version. A fixed prefix alone therefore caches the first local pack forever,
+    so a framework change never reaches a package-consuming consumer (e.g. the Okta MA) until the cache is manually
+    evicted. A monotonically increasing -dev.<N> sidesteps the cache entirely: every pack is a NEW version the
+    consumer's floating reference (<VersionPrefix>-dev.*) re-resolves on a normal `dotnet build`, with no cache games.
 
     The counter is a single integer persisted in src\build\.local-pack-counter (gitignored). It starts at 0,
     is incremented on every run, and is written back before packing so each run produces a distinct N. All three
@@ -67,7 +66,10 @@ $counter++
 Set-Content -Path $counterFile -Value $counter -NoNewline
 
 $versionSuffix = "dev.$counter"
-$version = "3.0.0-$versionSuffix"
+# Derive the prefix from the holding project's VersionPrefix so this script never needs editing on a version bump.
+$holdingCsproj = Join-Path $srcDir 'Lithnet.Ecma2Framework\Lithnet.Ecma2Framework.csproj'
+$versionPrefix = ([regex]::Match((Get-Content -Raw $holdingCsproj), '<VersionPrefix>([^<]+)</VersionPrefix>')).Groups[1].Value
+$version = "$versionPrefix-$versionSuffix"
 
 Write-Host "Local pack version: $version (counter=$counter)" -ForegroundColor Cyan
 
@@ -95,4 +97,4 @@ foreach ($project in $packableProjects)
 
 Write-Host ""
 Write-Host "Packed $version into $nupkgOutputDir" -ForegroundColor Green
-Write-Host "Consumers referencing Lithnet.Ecma2Framework Version='3.0.0-dev.*' will resolve this on the next build." -ForegroundColor Green
+Write-Host "Consumers referencing Lithnet.Ecma2Framework Version='$versionPrefix-dev.*' will resolve this on the next build." -ForegroundColor Green

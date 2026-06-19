@@ -101,6 +101,23 @@ public class MyConfig
         }
 
         [TestMethod]
+        public void WorkerRole_EmitsMetadirectoryServicesResolver()
+        {
+            GeneratorDriverRunResult result = GeneratorTestHarness.RunGeneratorAndGetResult(ValidConsumerNoConfig, BuildProperties("Test.MA"));
+
+            string resolver = GeneratorTestHarness.GetGeneratedSource(result, "Ecma2MetadirectoryServicesResolver.g.cs");
+
+            Assert.IsNotNull(resolver, "The MMS runtime resolver must be emitted in the worker role.");
+            Assert.IsTrue(resolver.Contains("System.Runtime.CompilerServices.ModuleInitializer"), "The resolver must register via a module initializer so the handler is installed before Main is JIT-compiled. Source: " + resolver);
+            Assert.IsTrue(resolver.Contains("AppDomain.CurrentDomain.AssemblyResolve"), "The resolver must install an AppDomain assembly-resolve handler (works on .NET Framework and .NET). Source: " + resolver);
+            Assert.IsTrue(resolver.Contains("FIMSynchronizationService"), "The resolver must derive the MMS path from the MIM Synchronization Service registry key. Source: " + resolver);
+
+            // On the net5+ test host the BCL already provides ModuleInitializerAttribute, so the polyfill must NOT
+            // be emitted (emitting one would be a duplicate definition).
+            Assert.IsNull(GeneratorTestHarness.GetGeneratedSource(result, "Ecma2ModuleInitializerAttribute.g.cs"), "The ModuleInitializerAttribute polyfill must NOT be emitted when the target framework already provides it.");
+        }
+
+        [TestMethod]
         public void WorkerRole_NoConfigClasses_OmitsConfigParametersProvider()
         {
             GeneratorDriverRunResult result = GeneratorTestHarness.RunGeneratorAndGetResult(ValidConsumerNoConfig, BuildProperties("Test.MA"));
@@ -120,6 +137,7 @@ public class MyConfig
                 GeneratorTestHarness.GetGeneratedSource(result, "WorkerProgram.g.cs"),
                 GeneratorTestHarness.GetGeneratedSource(result, "Ecma2ConfigRegistrationProvider.g.cs"),
                 GeneratorTestHarness.GetGeneratedSource(result, "Ecma2GeneratedConfigParametersProvider.g.cs"),
+                GeneratorTestHarness.GetGeneratedSource(result, "Ecma2MetadirectoryServicesResolver.g.cs"),
             };
 
             foreach (string source in generated)

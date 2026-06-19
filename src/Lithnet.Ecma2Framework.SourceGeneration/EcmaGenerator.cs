@@ -228,6 +228,25 @@ namespace Lithnet.Ecma2Framework
             this.AddWorkerProgram(context, receiver);
             this.AddConfigParameterMapping(context, receiver);
             this.AddGeneratedConfigParametersSource(context, receiver);
+            this.AddMetadirectoryServicesResolver(context);
+        }
+
+        /// <summary>
+        /// Emits the runtime resolver that loads Microsoft.MetadirectoryServicesEx from the host's own MIM install.
+        /// The host is built against MMS but never ships it, so the worker exe carries this module initializer to
+        /// install an assembly-resolve handler before Main is JIT-compiled (a consumer startup type with an
+        /// MMS-typed field would otherwise force MMS to load during Main's JIT, before any handler could be set).
+        /// The ModuleInitializerAttribute polyfill is emitted only when the target framework does not already
+        /// provide it (i.e. .NET Framework); on .NET 5+ the BCL type is used, so emitting one would be a duplicate.
+        /// </summary>
+        private void AddMetadirectoryServicesResolver(GeneratorExecutionContext context)
+        {
+            context.AddSource("Ecma2MetadirectoryServicesResolver.g.cs", SourceText.From(this.GetResource("Lithnet.Ecma2Framework.SourceGeneration.Templates.MetadirectoryServicesResolver.txt"), Encoding.UTF8));
+
+            if (context.Compilation.GetTypeByMetadataName("System.Runtime.CompilerServices.ModuleInitializerAttribute") == null)
+            {
+                context.AddSource("Ecma2ModuleInitializerAttribute.g.cs", SourceText.From(this.GetResource("Lithnet.Ecma2Framework.SourceGeneration.Templates.ModuleInitializerPolyfill.txt"), Encoding.UTF8));
+            }
         }
 
         private void AddWorkerProgram(GeneratorExecutionContext context, Ecma2InitializerSyntaxReceiver receiver)

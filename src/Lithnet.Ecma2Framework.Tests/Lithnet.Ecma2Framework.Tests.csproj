@@ -11,13 +11,7 @@
 	</PropertyGroup>
 
 	<ItemGroup>
-		<!-- Host MMS assembly: the test providers name and construct real MMS types (Schema, SchemaType,
-		     ConfigParameterKeyedCollection) at runtime in this net8 test host, so the DLL must be copied
-		     alongside the test output — Private=true. Referenced locally, never redistributed. -->
-		<Reference Include="Microsoft.MetadirectoryServicesEx">
-			<HintPath>..\Lithnet.Ecma2Framework.Sdk\lib\Microsoft.MetadirectoryServicesEx.dll</HintPath>
-			<Private>true</Private>
-		</Reference>
+		<PackageReference Include="Lithnet.MIM.MetadirectoryServicesEx" Version="4.3.1935" PrivateAssets="all" />
 	</ItemGroup>
 
 	<ItemGroup>

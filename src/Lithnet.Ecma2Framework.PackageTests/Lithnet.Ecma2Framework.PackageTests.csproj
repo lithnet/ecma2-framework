@@ -30,13 +30,13 @@
 		<NoWarn>$(NoWarn);NU1701;MSB3270</NoWarn>
 
 		<!-- The framework package version this consumer pulls from the local source. The e2e test packs the three
-		     framework packages with -p:VersionSuffix=test (i.e. 3.0.0-test, NOT the stable VersionPrefix 3.0.0,
+		     framework packages with -p:VersionSuffix=test (i.e. <VersionPrefix>-test, NOT the stable VersionPrefix,
 		     which would pollute the shared dev feed/cache) and passes that exact version via -p for the OUTER
 		     build. This default MUST equal that packed version because the nested host build (Host.proj, a
 		     separate dotnet process that ProjectReferences this consumer) re-evaluates this csproj WITHOUT the
-		     test's -p override, so it relies on this default to resolve the same package. Keep the two in lockstep:
-		     the test's VersionSuffix and this default both say 'test'. -->
-		<Ecma2PackageTestVersion Condition="'$(Ecma2PackageTestVersion)' == ''">3.0.0-test</Ecma2PackageTestVersion>
+		     test's -p override, so it relies on this default to resolve the same package. Keep this prefix in step
+		     with the framework projects' VersionPrefix on a version bump. -->
+		<Ecma2PackageTestVersion Condition="'$(Ecma2PackageTestVersion)' == ''">3.0.5-test</Ecma2PackageTestVersion>
 	</PropertyGroup>
 
 	<ItemGroup>
@@ -56,17 +56,7 @@
 	</ItemGroup>
 
 	<ItemGroup>
-		<!-- Host MMS assembly: this consumer's providers name real MMS types (Schema, SchemaType,
-		     MACapabilities, etc.), so it needs its own compile reference. Microsoft.MetadirectoryServicesEx.dll is
-		     Microsoft's assembly and is NOT shipped in the framework package: a real consumer references it from
-		     their own MIM (Synchronization Service) install. This in-repo package-test consumer plays that role,
-		     pointing the HintPath at the framework repo's reference copy. Private=true so the facade DLL flows into
-		     the host's transitive closure (the host ProjectReferences this consumer) AND the framework derives the
-		     shim/host build's MMS path from this same resolved reference. -->
-		<Reference Include="Microsoft.MetadirectoryServicesEx">
-			<HintPath>..\Lithnet.Ecma2Framework.Sdk\lib\Microsoft.MetadirectoryServicesEx.dll</HintPath>
-			<Private>true</Private>
-		</Reference>
+		<PackageReference Include="Lithnet.MIM.MetadirectoryServicesEx" Version="4.3.1935" PrivateAssets="all" ExcludeAssets="runtime" />
 	</ItemGroup>
 
 	<ItemGroup>

@@ -29,13 +29,13 @@
 		<Copyright>Copyright $([System.DateTime]::Now.Year) Lithnet Pty Ltd</Copyright>
 		<ProductName>Lithnet ECMA2 framework</ProductName>
 		<!-- VersionPrefix (NOT a fixed <Version>) so the same csproj supports three modes:
-		       * plain pack (no args)            -> 3.0.0                (VersionPrefix, no suffix)
-		       * CI  (-p:Version=3.0.<rev>)      -> 3.0.<rev>            (-p:Version= overrides VersionPrefix entirely)
-		       * local (-p:VersionSuffix=dev.N)  -> 3.0.0-dev.N          (prerelease, never collides in the NuGet cache)
+		       * plain pack (no args)            -> <VersionPrefix>           (no suffix)
+		       * CI  (-p:Version=X.Y.Z)          -> X.Y.Z                     (-p:Version= overrides VersionPrefix entirely)
+		       * local (-p:VersionSuffix=dev.N)  -> <VersionPrefix>-dev.N     (prerelease, never collides in the NuGet cache)
 		     The three packages (this SDK, Hosting, and the holding package) all publish at the same version, and the
 		     holding package's default >= dependency ranges resolve lowest-applicable, so a consumer always gets a
 		     matching set. The counter-based local pack (src\build\pack-local.ps1) supplies VersionSuffix=dev.<N>. -->
-		<VersionPrefix>3.0.0</VersionPrefix>
+		<VersionPrefix>3.0.5</VersionPrefix>
 		<Authors>Lithnet</Authors>
 		<AutoIncrementPackageRevision>true</AutoIncrementPackageRevision>
 		<IsPackable>true</IsPackable>
@@ -67,12 +67,7 @@
 	</ItemGroup>
 
 	<ItemGroup>
-		<!-- Host MMS assembly: referenced locally, never redistributed. The worker (net8) and the
-		     generated shim (net48) each supply their own copy at runtime, so Private=false here. -->
-		<Reference Include="Microsoft.MetadirectoryServicesEx">
-			<HintPath>lib\Microsoft.MetadirectoryServicesEx.dll</HintPath>
-			<Private>false</Private>
-		</Reference>
+		<PackageReference Include="Lithnet.MIM.MetadirectoryServicesEx" Version="4.3.1935" PrivateAssets="all" ExcludeAssets="runtime" />
 	</ItemGroup>
 
 	<!--

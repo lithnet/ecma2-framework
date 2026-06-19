@@ -160,12 +160,9 @@
 	</Target>
 
 	<ItemGroup>
-		<!-- Host MMS assembly: the host names real MMS types at compile time. Private=true so the facade DLL sits
-		     next to the host exe at runtime. The HintPath is the caller-supplied path derived from the consumer's
-		     own reference. -->
 		<Reference Include="Microsoft.MetadirectoryServicesEx">
 			<HintPath>$(Ecma2HostMmsPath)</HintPath>
-			<Private>true</Private>
+			<Private>false</Private>
 		</Reference>
 	</ItemGroup>
 

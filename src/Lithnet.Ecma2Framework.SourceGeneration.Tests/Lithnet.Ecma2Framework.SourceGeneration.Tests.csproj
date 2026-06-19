@@ -11,13 +11,7 @@
 	</PropertyGroup>
 
 	<ItemGroup>
-		<!-- Host MMS assembly: the generator test harness loads the real MMS assembly (typeof(Schema)
-		     .Assembly.Location) to add it as a metadata reference for the test compilations, so the DLL
-		     must be present alongside the test output — Private=true. -->
-		<Reference Include="Microsoft.MetadirectoryServicesEx">
-			<HintPath>..\Lithnet.Ecma2Framework.Sdk\lib\Microsoft.MetadirectoryServicesEx.dll</HintPath>
-			<Private>true</Private>
-		</Reference>
+		<PackageReference Include="Lithnet.MIM.MetadirectoryServicesEx" Version="4.3.1935" PrivateAssets="all" />
 	</ItemGroup>
 
 	<ItemGroup>

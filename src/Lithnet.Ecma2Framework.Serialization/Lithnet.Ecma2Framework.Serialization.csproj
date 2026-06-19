@@ -31,12 +31,7 @@
 	</ItemGroup>
 
 	<ItemGroup>
-		<!-- Host MMS assembly: referenced locally, never redistributed. The worker (net8) and the
-		     generated shim (net48) each supply their own copy at runtime, so Private=false here. -->
-		<Reference Include="Microsoft.MetadirectoryServicesEx">
-			<HintPath>..\Lithnet.Ecma2Framework.Sdk\lib\Microsoft.MetadirectoryServicesEx.dll</HintPath>
-			<Private>false</Private>
-		</Reference>
+		<PackageReference Include="Lithnet.MIM.MetadirectoryServicesEx" Version="4.3.1935" PrivateAssets="all" ExcludeAssets="runtime" />
 	</ItemGroup>
 
 </Project>

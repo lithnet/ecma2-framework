@@ -48,12 +48,8 @@ namespace Lithnet.Ecma2Framework.Shim.Build.Tests
             // The shim .proj has NO default Ecma2HostMmsPath: the framework derives it from the consumer's own
             // Microsoft.MetadirectoryServicesEx reference and forwards it via -p:Ecma2HostMmsPath. This test
             // invokes the .proj directly (standing in for the BuildEcma2Shim target), so it must supply that path
-            // too - pointing at the framework repo's reference copy, which is the in-repo MMS assembly.
-            string hostMmsPath = Path.Combine(
-                this.repositorySrcDirectory,
-                "Lithnet.Ecma2Framework.Sdk",
-                "lib",
-                "Microsoft.MetadirectoryServicesEx.dll");
+            // too - the MMS package copies the assembly into this test's own output directory.
+            string hostMmsPath = Path.Combine(AppContext.BaseDirectory, "Microsoft.MetadirectoryServicesEx.dll");
 
             string arguments = string.Format(
                 "build \"{0}\" -c {1} -p:Ecma2ManagementAgentName={2} -p:Ecma2HostMmsPath=\"{3}\" -p:Ecma2ShimOutputRoot=\"{4}\"",

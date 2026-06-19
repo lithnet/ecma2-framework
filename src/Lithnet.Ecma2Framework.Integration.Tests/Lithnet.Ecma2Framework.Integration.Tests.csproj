@@ -13,11 +13,7 @@
 	</ItemGroup>
 
 	<ItemGroup>
-		<!-- Host MMS assembly: referenced locally, never redistributed by NuGet. -->
-		<Reference Include="Microsoft.MetadirectoryServicesEx">
-			<HintPath>..\Lithnet.Ecma2Framework.Sdk\lib\Microsoft.MetadirectoryServicesEx.dll</HintPath>
-			<Private>True</Private>
-		</Reference>
+		<PackageReference Include="Lithnet.MIM.MetadirectoryServicesEx" Version="4.3.1935" PrivateAssets="all" />
 	</ItemGroup>
 
 	<ItemGroup>
