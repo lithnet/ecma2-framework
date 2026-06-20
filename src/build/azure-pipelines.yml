@@ -145,7 +145,7 @@ stages:
         environment: 'Public nuget feed'
         displayName: Publish packages to public nuget feed
         pool:
-          vmImage: ubuntu-latest
+          vmImage: windows-latest
         strategy:
           runOnce:
             deploy:
