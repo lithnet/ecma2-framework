@@ -1,0 +1,30 @@
+<Project>
+	<!--
+		Package-only props (shipped in build\ alongside the targets). NuGet auto-imports build\<id>.props into
+		the consumer build, BEFORE the consumer's body and before build\<id>.targets. It redirects every tooling
+		path the targets / Host.proj / Shim.proj consume from the in-repo source tree to the packaged locations
+		under this build\ folder, and flips Ecma2PackagedTooling so Host.proj references the packaged framework
+		DLLs instead of the framework source projects. In-repo builds never see this file (it ships ONLY in the
+		package), so they keep their source-tree defaults from the targets.
+	-->
+	<PropertyGroup>
+		<Ecma2PackagedTooling>true</Ecma2PackagedTooling>
+
+		<Ecma2HostProject>$(MSBuildThisFileDirectory)Lithnet.Ecma2Framework.Host.proj</Ecma2HostProject>
+		<Ecma2ShimProject>$(MSBuildThisFileDirectory)Lithnet.Ecma2Framework.Shim.proj</Ecma2ShimProject>
+		<Ecma2ShimSourcesTargets>$(MSBuildThisFileDirectory)shim\Lithnet.Ecma2Framework.Shim.Sources.targets</Ecma2ShimSourcesTargets>
+		<Ecma2PackagedMaTemplate>$(MSBuildThisFileDirectory)Lithnet.Ecma2Framework.PackagedMa.template.props</Ecma2PackagedMaTemplate>
+
+		<!-- No Ecma2HostMmsPath default. Microsoft.MetadirectoryServicesEx.dll is Microsoft's assembly and is NOT
+		     shipped in this package. The consumer declares its own <Reference Include="Microsoft.MetadirectoryServicesEx">
+		     (HintPath at their MIM install, Private=true); the targets DERIVE the shim build's MMS path from that
+		     resolved reference and fail loud if it is absent. There is no bundled or default copy to fall back to. -->
+
+		<!-- The source generator is packed into build\tools\; Host.proj references it as an <Analyzer> by this
+		     path when Ecma2PackagedTooling is true. The SDK + Hosting + Serialization + StreamJsonRpc runtime
+		     assemblies are NOT referenced by path: the consumer installs the holding package (which depends on
+		     both Sdk and Hosting), and the host inherits that whole closure TRANSITIVELY through its
+		     ProjectReference to the consumer - so no version is pinned here and none needs to be (see Host.proj). -->
+		<Ecma2GeneratorDll>$(MSBuildThisFileDirectory)tools\Lithnet.Ecma2Framework.SourceGeneration.dll</Ecma2GeneratorDll>
+	</PropertyGroup>
+</Project>

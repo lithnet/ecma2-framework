@@ -1,0 +1,674 @@
+<Project>
+
+	<!--
+		Consumer-facing MSBuild targets for the Lithnet ECMA2 v3 framework.
+
+		A consumer project (the net8 worker) imports this file. It does two things:
+
+		  1. Computes the EFFECTIVE shim name and exposes Ecma2ManagementAgentName to the WORKER compile so
+		     the generator sees the name (it keys the generated config-registration provider on it).
+
+		  2. After the worker is built, invokes the static shim project (Lithnet.Ecma2Framework.Shim.proj)
+		     to compile the second output - the net48 <name>.Ecma2.dll shim - into an ISOLATED obj/bin, then
+		     copies that shim next to the worker output. The shim build is isolated so its net48 output can
+		     never contaminate the worker's net8 output.
+
+		This is the conventional NuGet build\ location; in-repo it is consumed via relative paths, and the
+		same file ships in the package's build\ folder so a NuGet consumer gets the identical behaviour.
+	-->
+
+	<!--
+		Import the consumer's packaged-MA identity props, if present.
+
+		Identity for an OPTIONAL packaged-MA manifest (company, list name, GUID, opt-in switch) lives in a
+		scaffolded, committed, VISIBLE props file in the consumer project - NOT in mapackager's
+		MAPackageInformation.xml, which this framework never touches. The file is dropped as a blank template
+		on the first build (see ScaffoldEcma2PackagedMaProps below) and is edited by the consumer to fill in
+		their identity and turn generation on. Importing it here makes the Ecma2PackagedMa* / Ecma2GeneratePackagedMa
+		properties available to the targets and conditions below.
+
+		Sequencing note: on the VERY FIRST build the file does not yet exist, so this import is skipped and the
+		scaffold target (which runs BeforeTargets="Build") drops the blank template; generation is therefore
+		off for that first build (the template defaults Ecma2GeneratePackagedMa to false anyway). Every
+		subsequent build sees the file at import time and reads the filled-in values. That ordering is by design.
+	-->
+	<Import Project="$(MSBuildProjectDirectory)\Lithnet.Ecma2Framework.PackagedMa.props"
+	        Condition="Exists('$(MSBuildProjectDirectory)\Lithnet.Ecma2Framework.PackagedMa.props')" />
+
+	<!--
+		Effective shim name resolution.
+
+		The shim's name is AUTO-DERIVED from the consumer's assembly name with a '.Ecma2' suffix
+		(e.g. consumer 'Lithnet.Okta.ManagementAgent' -> shim 'Lithnet.Okta.ManagementAgent.Ecma2'). The
+		'.Ecma2' suffix keeps the shim DLL name distinct from the worker's own '<assembly>.dll' (a net8 Exe
+		emits both '<name>.exe' AND '<name>.dll'), so the two never collide when the shim is dropped next to
+		the worker output.
+
+		Ecma2ManagementAgentName is an OPTIONAL override: when the consumer sets it, it is used verbatim as the
+		shim assembly name; when unset, the name defaults to $(AssemblyName).Ecma2. Because the name is now
+		always derivable (AssemblyName always exists), it is no longer a required input - there is no fail-loud
+		guard on an empty Ecma2ManagementAgentName.
+
+		The effective name is written back into Ecma2ManagementAgentName so the existing CompilerVisibleProperty
+		flows the resolved value to the worker-role generator (which reads build_property.Ecma2ManagementAgentName
+		for its ECMA2011 check), and the same value is passed to the shim build. $(AssemblyName) is set by the SDK
+		props, which are imported before the consumer's <Import> of this targets file, so it is available here.
+	-->
+	<PropertyGroup>
+		<Ecma2ShimAssemblyName Condition="'$(Ecma2ManagementAgentName)' != ''">$(Ecma2ManagementAgentName)</Ecma2ShimAssemblyName>
+		<Ecma2ShimAssemblyName Condition="'$(Ecma2ShimAssemblyName)' == ''">$(AssemblyName).Ecma2</Ecma2ShimAssemblyName>
+
+		<!-- Surface the EFFECTIVE name as Ecma2ManagementAgentName so the existing CompilerVisibleProperty
+		     carries the resolved value to the worker-role generator. -->
+		<Ecma2ManagementAgentName>$(Ecma2ShimAssemblyName)</Ecma2ManagementAgentName>
+	</PropertyGroup>
+
+	<!--
+		Generator input for the CONSUMER (worker) compile. The effective name reaches the generator via
+		build_property.Ecma2ManagementAgentName (it keys the generated config-registration provider and worker
+		host on it), so it is made compiler-visible.
+	-->
+	<ItemGroup>
+		<CompilerVisibleProperty Include="Ecma2ManagementAgentName" />
+	</ItemGroup>
+
+	<!--
+		Default input paths, all overridable by the consumer project. In-repo these resolve relative to
+		THIS targets file (src\Lithnet.Ecma2Framework\build\); in the NuGet package they resolve to the
+		packaged locations. The host MMS path is NOT defaulted here - it is derived from the consumer's own
+		Microsoft.MetadirectoryServicesEx reference by ResolveEcma2HostMmsPath (see below).
+	-->
+	<PropertyGroup>
+		<!-- The static shim project this targets file invokes. -->
+		<Ecma2ShimProject Condition="'$(Ecma2ShimProject)' == ''">$(MSBuildThisFileDirectory)Lithnet.Ecma2Framework.Shim.proj</Ecma2ShimProject>
+
+		<!-- The static host project this targets file invokes to build the host exe. -->
+		<Ecma2HostProject Condition="'$(Ecma2HostProject)' == ''">$(MSBuildThisFileDirectory)Lithnet.Ecma2Framework.Host.proj</Ecma2HostProject>
+
+		<!-- The static host exe name. Default 'Ecma2Host'; overridable for anyone who wants a per-MA process
+		     name. The host build emits '<name>.exe' + '<name>.dll'. -->
+		<Ecma2HostExeName Condition="'$(Ecma2HostExeName)' == ''">Ecma2Host</Ecma2HostExeName>
+
+		<!-- The host exe is built to the consumer's OWN target framework. Never hardcoded: a consumer on
+		     net8/net10/net48 gets a host on the same TFM (subject to the framework runtime assemblies
+		     supporting it). -->
+		<Ecma2HostTargetFramework Condition="'$(Ecma2HostTargetFramework)' == ''">$(TargetFramework)</Ecma2HostTargetFramework>
+
+		<!--
+			Worker build/publish knobs, all overridable by the consumer project.
+
+			The worker (host exe) is built FRAMEWORK-DEPENDENT on a plain `dotnet build` (fast inner loop, the
+			MIM server supplies the .NET runtime) and SELF-CONTAINED + ReadyToRun on `dotnet publish` (a portable,
+			runtime-independent deployment artifact). These knobs control the publish flavour:
+
+			  * Ecma2WorkerRuntimeIdentifier - the RID the worker is built/published for (win-x64 by default; the
+			    worker only ever runs as a Windows process spawned by the MIM Synchronization Service). Passed to
+			    BOTH the build and the publish sub-builds (-r), so the framework-dependent build and the
+			    self-contained publish target the same platform.
+			  * Ecma2WorkerSelfContained - whether `dotnet publish` bundles the .NET runtime into the worker output
+			    (default false; the Okta consumer sets it true). Applied on PUBLISH only.
+			  * Ecma2WorkerReadyToRun - whether `dotnet publish` crossgens the worker + its framework assemblies to
+			    R2R (AOT-precompiled) images (default false). Applied on PUBLISH only.
+		-->
+		<Ecma2WorkerRuntimeIdentifier Condition="'$(Ecma2WorkerRuntimeIdentifier)' == ''">win-x64</Ecma2WorkerRuntimeIdentifier>
+		<Ecma2WorkerSelfContained Condition="'$(Ecma2WorkerSelfContained)' == ''">false</Ecma2WorkerSelfContained>
+		<Ecma2WorkerReadyToRun Condition="'$(Ecma2WorkerReadyToRun)' == ''">false</Ecma2WorkerReadyToRun>
+
+		<!--
+			Computed gate: self-contained + ReadyToRun publishing is only meaningful for a .NET 5+ worker. A
+			.NET Framework (net4x) worker is ALWAYS machine-installed - the .NET Framework runtime is a Windows
+			component, never bundled - and the SDK does not support self-contained / R2R publishing for it. So a
+			net4x worker publishes EXACTLY like it builds (framework-dependent, no R2R), regardless of the knobs.
+
+			"net5+" is detected as "the worker TFM does NOT start with net4" (consumers run net8/net10/net48; any
+			net4x moniker - net48, net472, ... - is .NET Framework). When false, PublishEcma2Host omits the
+			-r/-p:SelfContained/-p:PublishReadyToRun args entirely and publishes like a build. -->
+		<Ecma2WorkerSupportsPublishRuntime>true</Ecma2WorkerSupportsPublishRuntime>
+		<Ecma2WorkerSupportsPublishRuntime Condition="$(Ecma2HostTargetFramework.StartsWith('net4'))">false</Ecma2WorkerSupportsPublishRuntime>
+
+		<!-- Shared shim sources targets - forwarded to the shim build so both sides resolve the same path. -->
+		<Ecma2ShimSourcesTargets Condition="'$(Ecma2ShimSourcesTargets)' == ''">$(MSBuildThisFileDirectory)..\..\Lithnet.Ecma2Framework.Shim\Lithnet.Ecma2Framework.Shim.Sources.targets</Ecma2ShimSourcesTargets>
+
+		<!-- NO Ecma2HostMmsPath default here. Microsoft.MetadirectoryServicesEx.dll is Microsoft's assembly; the
+		     framework neither ships nor looks it up. The path is DERIVED at build time from the consumer's own
+		     <Reference Include="Microsoft.MetadirectoryServicesEx"> by the ResolveEcma2HostMmsPath target below,
+		     and that target fails loud if the consumer declares no such reference. -->
+	</PropertyGroup>
+
+	<!--
+		Fail loud, EARLY, if the consumer has not declared the required Microsoft.MetadirectoryServicesEx reference.
+
+		Microsoft.MetadirectoryServicesEx.dll is Microsoft's assembly; the framework ships no copy and performs no
+		registry / well-known-path lookup. The consumer MUST declare it from their own MIM install:
+		  <Reference Include="Microsoft.MetadirectoryServicesEx"><HintPath>...</HintPath><Private>true</Private></Reference>
+
+		This presence check runs BEFORE CoreCompile (not after Build) on PURPOSE. A real consumer's own provider
+		source names MMS types (Schema, SchemaType, MACapabilities, IConfigParameters, ...), so a missing reference
+		would otherwise surface first as a raw C# compiler error (CS0234/CS0246) from the consumer's OWN compile -
+		an obscure "are you missing an assembly reference?" rather than the actionable instruction below. Running
+		ahead of CoreCompile guarantees THIS clear, named error is what the consumer sees, before any downstream
+		compiler error and well before the host/shim sub-builds. It tests @(Reference) (the static reference items,
+		populated at evaluation, available pre-compile), not the post-RAR @(ReferencePath) (not yet resolved here).
+
+		There is NO silent fallback to a bundled or default copy - a missing required input must fail, not be
+		papered over (this is a must-fail-loud input).
+	-->
+	<Target Name="ValidateEcma2HostMmsReference"
+	        BeforeTargets="CoreCompile"
+	        Condition="'$(Ecma2InnerBuild)' != 'true'">
+
+		<PropertyGroup>
+			<!-- Present iff the consumer declared a <Reference Include="Microsoft.MetadirectoryServicesEx">. Match
+			     on the item IDENTITY (the Include string), NOT %(FileName): the SDK derives %(FileName) by stripping
+			     the last dotted segment as an "extension", so 'Microsoft.MetadirectoryServicesEx' yields a FileName
+			     of 'Microsoft.MetadirectoryServices' - which would never match. The identity also tolerates the
+			     fully-qualified 'Microsoft.MetadirectoryServicesEx, Version=...' form, so test for the assembly
+			     simple name as a prefix of the flattened identity list. An explicit Ecma2HostMmsPath override also
+			     satisfies the requirement (the path is supplied directly). -->
+			<Ecma2MmsReferenceIdentities>@(Reference->'%(Identity)')</Ecma2MmsReferenceIdentities>
+			<Ecma2HasMmsReference Condition="$(Ecma2MmsReferenceIdentities.Contains('Microsoft.MetadirectoryServicesEx'))">true</Ecma2HasMmsReference>
+			<Ecma2HasMmsReference Condition="'$(Ecma2HostMmsPath)' != ''">true</Ecma2HasMmsReference>
+		</PropertyGroup>
+
+		<Error Condition="'$(Ecma2HasMmsReference)' != 'true'"
+		       Text="The Lithnet ECMA2 framework requires the consumer to reference Microsoft.MetadirectoryServicesEx.dll from its own MIM (Synchronization Service) install, but no such reference was found in '$(MSBuildProjectFullPath)'. Add the following to your project (point the HintPath at your MIM Extensions/bin directory): &lt;Reference Include=&quot;Microsoft.MetadirectoryServicesEx&quot;&gt;&lt;HintPath&gt;...\Microsoft.MetadirectoryServicesEx.dll&lt;/HintPath&gt;&lt;Private&gt;true&lt;/Private&gt;&lt;/Reference&gt;. The framework does not ship this Microsoft assembly." />
+
+	</Target>
+
+	<!--
+		Derive the host MMS path from the CONSUMER's own Microsoft.MetadirectoryServicesEx reference.
+
+		The shim and host sub-builds are SEPARATE dotnet processes that do NOT ProjectReference the consumer, so
+		they must be told where Microsoft.MetadirectoryServicesEx.dll lives. That assembly is Microsoft's: the
+		consumer references it from their own MIM install (see ValidateEcma2HostMmsReference above), and the
+		framework derives the absolute path from that one declaration - it ships no copy and performs no
+		registry / well-known-path lookup.
+
+		Resolution order:
+		  1. Prefer the POST-RAR resolved absolute path: filter @(ReferencePath) (populated by ResolveAssemblyReferences,
+		     a prerequisite of Build, so it is available in this AfterTargets="Build" phase) for the reference whose
+		     file name is Microsoft.MetadirectoryServicesEx. This is the path RAR actually resolved the HintPath to.
+		  2. Fall back to the raw @(Reference) HintPath, resolved to an absolute path, in case RAR did not surface the
+		     reference in @(ReferencePath) (e.g. an unusual resolution configuration).
+
+		If neither yields a path, the consumer has not declared the required reference (the early
+		ValidateEcma2HostMmsReference should already have failed; this is the defence-in-depth backstop for the
+		sub-build path): FAIL LOUD with the same actionable <Error>. There is NO silent fallback to a bundled or
+		default copy.
+
+		This target is a DependsOn prerequisite of BuildEcma2Host and BuildEcma2Shim (both AfterTargets="Build"),
+		so it runs once, after ResolveReferences, before either sub-build is spawned.
+	-->
+	<Target Name="ResolveEcma2HostMmsPath"
+	        Condition="'$(Ecma2InnerBuild)' != 'true'"
+	        Returns="$(Ecma2HostMmsPath)">
+
+		<!-- Only derive when the consumer did not explicitly pin Ecma2HostMmsPath (an explicit override wins). -->
+		<PropertyGroup Condition="'$(Ecma2HostMmsPath)' == ''">
+			<!-- 1. Post-RAR resolved absolute path. Matching on %(FileName) is SAFE here (unlike on a raw
+			     <Reference> in step 2): @(ReferencePath) items carry the resolved DLL's path as their identity,
+			     so %(FileName) is the file name 'Microsoft.MetadirectoryServicesEx' (derived from the .dll), NOT
+			     the reference Include that the SDK strips the '.Ex' extension from. Do NOT "simplify" this to an
+			     Identity match to look like step 2 - it would then fail to find the resolved reference. -->
+			<Ecma2HostMmsPath>@(ReferencePath->WithMetadataValue('FileName', 'Microsoft.MetadirectoryServicesEx')->'%(FullPath)')</Ecma2HostMmsPath>
+		</PropertyGroup>
+
+		<!-- 2. Fall back to the raw <Reference> HintPath, resolved to absolute. Match on the item IDENTITY, not
+		     %(FileName) (the SDK strips '.Ex' as an extension, so a FileName filter never matches - see the
+		     ValidateEcma2HostMmsReference note). The HintPath is captured into a metadata-keyed item whose
+		     %(FullPath) yields the absolute path. -->
+		<ItemGroup Condition="'$(Ecma2HostMmsPath)' == ''">
+			<Ecma2MmsHintPath Include="@(Reference->'%(HintPath)')" Condition="'%(Reference.Identity)' == 'Microsoft.MetadirectoryServicesEx' and '%(Reference.HintPath)' != ''" />
+		</ItemGroup>
+		<PropertyGroup Condition="'$(Ecma2HostMmsPath)' == ''">
+			<Ecma2HostMmsPath>@(Ecma2MmsHintPath->'%(FullPath)')</Ecma2HostMmsPath>
+		</PropertyGroup>
+
+		<!-- No reference at all: the consumer has not declared the required input. Fail loud. -->
+		<Error Condition="'$(Ecma2HostMmsPath)' == ''"
+		       Text="The Lithnet ECMA2 framework requires the consumer to reference Microsoft.MetadirectoryServicesEx.dll from its own MIM (Synchronization Service) install, but no such reference was found in '$(MSBuildProjectFullPath)'. Add the following to your project (point the HintPath at your MIM Extensions/bin directory): &lt;Reference Include=&quot;Microsoft.MetadirectoryServicesEx&quot;&gt;&lt;HintPath&gt;...\Microsoft.MetadirectoryServicesEx.dll&lt;/HintPath&gt;&lt;Private&gt;true&lt;/Private&gt;&lt;/Reference&gt;. The framework does not ship this Microsoft assembly." />
+
+		<!-- The resolved path must point at a file that actually exists. A HintPath to a missing file is a
+		     misconfiguration, not a defaulting opportunity. -->
+		<Error Condition="'$(Ecma2HostMmsPath)' != '' and !Exists('$(Ecma2HostMmsPath)')"
+		       Text="The consumer's Microsoft.MetadirectoryServicesEx reference resolved to '$(Ecma2HostMmsPath)', but no file exists at that path. Fix the HintPath to point at Microsoft.MetadirectoryServicesEx.dll in your MIM install." />
+
+		<Message Importance="normal" Text="Lithnet ECMA2: derived host MMS path '$(Ecma2HostMmsPath)' from the consumer's Microsoft.MetadirectoryServicesEx reference." />
+
+	</Target>
+
+	<!--
+		Build the out-of-process host exe (Design C) after the consumer LIBRARY is built, then copy it and its
+		full runtime closure next to the consumer output.
+
+		The host project ProjectReferences the consumer, so building it re-evaluates the consumer inside the
+		host build; Ecma2InnerBuild=true is passed as a GLOBAL property (it flows into the ProjectReference) so
+		the consumer's own post-build targets (this target, BuildEcma2Shim, EmitEcma2Manifest, the scaffold)
+		are suppressed in that nested evaluation - no recursion. A separate dotnet process gives the host build
+		a pristine evaluation and a clean restore of the consumer's transitive NuGet closure. The host is built
+		to the consumer's own $(TargetFramework).
+	-->
+	<Target Name="BuildEcma2Host" AfterTargets="Build" DependsOnTargets="ResolveEcma2HostMmsPath" Condition="'$(Ecma2InnerBuild)' != 'true' and '$(_IsPublishing)' != 'true'">
+
+		<PropertyGroup>
+			<Ecma2HostOutputRoot Condition="'$(Ecma2HostOutputRoot)' == ''">$([System.IO.Path]::GetFullPath('$(MSBuildProjectDirectory)\$(IntermediateOutputPath)ecma2host\'))</Ecma2HostOutputRoot>
+
+			<!--
+				Packaged-tooling args, forwarded ONLY when consumed from the NuGet package (the package props set
+				Ecma2PackagedTooling=true and the generator path). The host build is a SEPARATE dotnet process that
+				does NOT auto-import the consumer's package props, so the packaged-tooling switch + the generator
+				<Analyzer> path must be passed explicitly - otherwise Host.proj would fall back to the in-repo
+				ProjectReferences, which do not exist under the package. The framework runtime closure (Sdk +
+				Hosting + their transitive deps) is NOT passed as a version: it flows into the host build
+				transitively through Host.proj's ProjectReference to the consumer (which installed the holding
+				package). In-repo (Ecma2PackagedTooling unset) this expands to empty and Host.proj keeps its
+				ProjectReference branch.
+			-->
+			<Ecma2HostPackagedArgs Condition="'$(Ecma2PackagedTooling)' == 'true'">-p:Ecma2PackagedTooling=true -p:Ecma2GeneratorDll=&quot;$(Ecma2GeneratorDll)&quot;</Ecma2HostPackagedArgs>
+
+			<!--
+				NuGet config discovery for the host build.
+
+				The host is a SEPARATE dotnet build of Host.proj. NuGet discovers nuget.config by walking up from
+				the ENTRY PROJECT's directory to the drive root, then layering the user- and machine-level configs
+				(hierarchical merge: <add> sources from every file in the chain are UNIONED; only <clear/> drops the
+				inherited set). The packaged Host.proj ships in THIS package's build\ folder, which lives under the
+				NuGet global packages cache - NOT in the consumer's directory tree. Building the cached Host.proj
+				directly would make NuGet walk the CACHE path, so it would never see the consumer's own
+				nuget.config (e.g. a repo config that adds a private/local feed hosting the
+				Lithnet.Ecma2Framework.Hosting package).
+
+				Fix: copy Host.proj into the consumer-tree isolated obj dir ($(Ecma2HostOutputRoot), already
+				<consumer>\obj\...\ecma2host\) and build THAT COPY. NuGet's walk then starts from the consumer's obj
+				dir and climbs the consumer's own directory chain, finding the EXACT SAME hierarchical config set
+				(repo config + parent dirs + user + machine) the consumer itself restores against - sources merged,
+				not replaced. This is standard hierarchical discovery, so no RestoreConfigFile (the MSBuild form of
+				NuGet's configfile option) override is used: that option REPLACES the whole config chain with a
+				single file (NuGet doc: "only the settings from the specified file will be used"), which would
+				silently drop nuget.org and the user/machine feeds a consumer inherits while adding only a private
+				feed - the very bug this change removes.
+
+				Host.proj in packaged mode is self-contained at the copied location: Sdk.props/Sdk.targets resolve
+				via the dotnet SDK resolver (not relative paths), and every other input (the Hosting + SDK packages
+				via PackageReference, the consumer project, the generator, the MMS reference) is supplied as an
+				absolute path through the -p: args below. So the lone copied .proj needs no sibling files.
+
+				This copy-under-consumer mechanism applies to PACKAGED mode only. The IN-REPO branch
+				(Ecma2PackagedTooling unset) is built in place from $(Ecma2HostProject): its Host.proj uses
+				$(MSBuildThisFileDirectory)-relative ProjectReferences to the framework SOURCE projects, which only
+				resolve from Host.proj's original src\ location - copying it elsewhere would break them. In-repo
+				there is no packaged feed to discover anyway (the framework comes from the source tree, not a
+				nuget.config feed), so in-repo keeps building the original in place.
+			-->
+			<Ecma2HostProjectCopy Condition="'$(Ecma2PackagedTooling)' == 'true'">$([MSBuild]::EnsureTrailingSlash('$(Ecma2HostOutputRoot)'))$([System.IO.Path]::GetFileName('$(Ecma2HostProject)'))</Ecma2HostProjectCopy>
+
+			<!-- The project the host build actually compiles: the consumer-tree COPY in packaged mode (for correct
+			     hierarchical nuget.config discovery), the original in-place project in-repo. -->
+			<Ecma2HostBuildProject Condition="'$(Ecma2PackagedTooling)' == 'true'">$(Ecma2HostProjectCopy)</Ecma2HostBuildProject>
+			<Ecma2HostBuildProject Condition="'$(Ecma2HostBuildProject)' == ''">$(Ecma2HostProject)</Ecma2HostBuildProject>
+		</PropertyGroup>
+
+		<!-- Packaged mode only: place the host project copy under the consumer's directory tree so NuGet's
+		     project-directory-based config discovery finds the consumer's full hierarchical nuget.config chain. -->
+		<MakeDir Condition="'$(Ecma2PackagedTooling)' == 'true'" Directories="$(Ecma2HostOutputRoot)" />
+		<Copy Condition="'$(Ecma2PackagedTooling)' == 'true'"
+		      SourceFiles="$(Ecma2HostProject)"
+		      DestinationFiles="$(Ecma2HostProjectCopy)"
+		      SkipUnchangedFiles="false" />
+
+		<!-- Ecma2HostOutputRoot is passed LAST: its value ends in a trailing backslash, which would escape the
+		     closing quote of a quoted argument and swallow anything that followed it. Keeping it last makes the
+		     escaped-quote harmless (Host.proj re-normalizes the value with EnsureTrailingSlash anyway). The
+		     packaged args therefore precede it. The build target is the consumer-tree COPY of Host.proj in
+		     packaged mode (see the discovery note above) and the in-place original in-repo. -->
+		<Exec Command="dotnet build &quot;$(Ecma2HostBuildProject)&quot; -c $(Configuration) -restore -p:Version=&quot;$(Version)&quot; -r $(Ecma2WorkerRuntimeIdentifier) -p:Ecma2InnerBuild=true -p:Ecma2HostExeName=$(Ecma2HostExeName) -p:Ecma2HostTargetFramework=$(Ecma2HostTargetFramework) -p:Ecma2ConsumerAssemblyName=$(AssemblyName) -p:Ecma2ConsumerProject=&quot;$(MSBuildProjectFullPath)&quot; -p:Ecma2ManagementAgentName=$(Ecma2ShimAssemblyName) -p:Ecma2HostMmsPath=&quot;$(Ecma2HostMmsPath)&quot; $(Ecma2HostPackagedArgs) -p:Ecma2HostOutputRoot=&quot;$(Ecma2HostOutputRoot)&quot;" />
+
+		<PropertyGroup>
+			<Ecma2HostBinDir>$([MSBuild]::EnsureTrailingSlash('$(Ecma2HostOutputRoot)'))bin\$(Configuration)\$(Ecma2HostTargetFramework)\</Ecma2HostBinDir>
+			<Ecma2HostExePath>$(Ecma2HostBinDir)$(Ecma2HostExeName).exe</Ecma2HostExePath>
+		</PropertyGroup>
+
+		<Error Condition="!Exists('$(Ecma2HostExePath)')"
+		       Text="The Lithnet ECMA2 host build completed but the expected host executable '$(Ecma2HostExePath)' was not found. The host could not be produced." />
+
+		<!--
+			Copy the host's COMPLETE output (exe + <host>.dll + the consumer DLL + every transitive NuGet
+			dependency + the runtimeconfig/deps json + the MMS facade) into the consumer output ROOT ($(OutDir)),
+			FLAT. The host IS the consumer's app running out-of-process, so its closure and the consumer's own
+			build output are ONE net8 worker - they belong together in a single flat set, not split across a
+			subfolder. The consumer build already placed the consumer DLL, the MMS facade and appsettings.json in
+			$(OutDir); the host's copy of those same files overwrites them identically (same files, same content),
+			which is harmless. The net48 shim and the optional manifest go in the 'ecma2\' subfolder instead (see
+			BuildEcma2Shim / EmitEcma2Manifest), keeping the net48 FIM-facing artifacts out of this flat net8
+			closure. The shim's WorkerPathResolver resolves whatever absolute path the installer/env var records,
+			so the worker placement needs no shim change.
+		-->
+		<ItemGroup>
+			<Ecma2HostArtifact Include="$(Ecma2HostBinDir)**\*.*" />
+		</ItemGroup>
+
+		<Copy SourceFiles="@(Ecma2HostArtifact)"
+		      DestinationFiles="@(Ecma2HostArtifact->'$(OutDir)%(RecursiveDir)%(Filename)%(Extension)')"
+		      SkipUnchangedFiles="false" />
+
+		<Message Importance="high" Text="Lithnet ECMA2: built host '$(Ecma2HostExeName).exe' ($(Ecma2HostTargetFramework)) and copied its closure to '$(OutDir)'." />
+
+	</Target>
+
+	<!--
+		Build the per-MA shim after the worker is built, then copy it into the 'ecma2\' subfolder of the worker
+		output.
+
+		The shim is the net48 FIM-facing glue, NOT part of the net8 worker closure that now fills the output root
+		(see BuildEcma2Host). It is placed in an 'ecma2\' subfolder so the net48 artifact stays out of the flat
+		net8 worker set. Its assembly name ($(Ecma2ShimAssemblyName) = <assembly>.Ecma2 by default) is in any
+		case distinct from the worker's own '<assembly>.dll'.
+	-->
+	<Target Name="BuildEcma2Shim" AfterTargets="Build" DependsOnTargets="ResolveEcma2HostMmsPath" Condition="'$(Ecma2InnerBuild)' != 'true'">
+
+		<!--
+			Isolated obj/bin ROOT for the shim build, computed HERE (inside the target) so the fully-resolved
+			$(IntermediateOutputPath) - the consumer's own intermediate dir, e.g. obj\Debug\net8.0\ - is
+			available; it is not set yet when this targets file is imported. The result is an ABSOLUTE path
+			(the Exec runs dotnet from this project's directory, but an absolute root removes any ambiguity)
+			placing the net48 shim's obj/bin under the consumer's intermediate dir so they never collide with
+			the consumer's net8 output. Overridable: only defaulted when the consumer did not set it.
+		-->
+		<PropertyGroup>
+			<Ecma2ShimOutputRoot Condition="'$(Ecma2ShimOutputRoot)' == ''">$([System.IO.Path]::GetFullPath('$(MSBuildProjectDirectory)\$(IntermediateOutputPath)ecma2shim\'))</Ecma2ShimOutputRoot>
+		</PropertyGroup>
+
+		<!--
+			Build the shim as a SEPARATE PROCESS (dotnet build via Exec), not the in-process <MSBuild> task.
+
+			This is deliberate and load-bearing, not a convenience. The shim is a genuinely separate net48
+			build unit, and an in-process <MSBuild> call shares the consumer's MSBuild node and global
+			property set, which produced two concrete failures:
+			  * Global-property leakage: the SDK sets TargetFramework=net8.0 (and RuntimeIdentifier, etc.) as
+			    GLOBAL properties on the consumer's inner build; those flow into a nested <MSBuild> call and
+			    override the shim's own net48 TargetFramework, breaking the net48 build.
+			  * Restore/CsWin32 staleness: CsWin32 ships its Win32 metadata as a restore asset; an in-process
+			    Restore-then-Build does not reliably re-evaluate the project with the freshly restored assets,
+			    so the Win32 types fail to generate.
+			A separate dotnet process gets a pristine evaluation, a clean restore, and none of the consumer's
+			global properties - exactly the environment in which the shim builds correctly standalone. Each
+			input path is passed explicitly so the shim resolves its sources, host MMS, generator, and isolated
+			output root regardless of the caller's environment. The effective shim name flows in via
+			-p:Ecma2ManagementAgentName so the shim's AssemblyName and the generator's namespace match it.
+
+			-restore performs the package restore (CsWin32) as part of the same invocation correctly because it
+			is a fresh process. The isolated Ecma2ShimOutputRoot keeps the net48 shim's obj/bin from colliding
+			with the consumer's net8 output. Paths are quoted to tolerate spaces.
+		-->
+		<Exec Command="dotnet build &quot;$(Ecma2ShimProject)&quot; -c $(Configuration) -restore -p:Version=&quot;$(Version)&quot; -p:Ecma2ManagementAgentName=$(Ecma2ShimAssemblyName) -p:Ecma2HostMmsPath=&quot;$(Ecma2HostMmsPath)&quot; -p:Ecma2ShimSourcesTargets=&quot;$(Ecma2ShimSourcesTargets)&quot; -p:Ecma2ShimOutputRoot=&quot;$(Ecma2ShimOutputRoot)&quot;" />
+
+		<!--
+			Locate the produced shim assembly. The shim builds to
+			$(Ecma2ShimOutputRoot)bin\$(Configuration)\net48\$(Ecma2ShimAssemblyName).dll.
+		-->
+		<PropertyGroup>
+			<Ecma2ShimDllPath>$(Ecma2ShimOutputRoot)bin\$(Configuration)\net48\$(Ecma2ShimAssemblyName).dll</Ecma2ShimDllPath>
+		</PropertyGroup>
+
+		<Error Condition="!Exists('$(Ecma2ShimDllPath)')"
+		       Text="The Lithnet ECMA2 shim build completed but the expected output '$(Ecma2ShimDllPath)' was not found. The shim could not be produced." />
+
+		<!-- Copy the shim (and its pdb, when present) into the 'ecma2\' subfolder of the worker output for
+		     packaging/deployment. The net48 shim is the FIM-facing glue and is deliberately kept out of the flat
+		     net8 worker closure that fills the output root. -->
+		<ItemGroup>
+			<Ecma2ShimArtifact Include="$(Ecma2ShimDllPath)" />
+			<Ecma2ShimArtifact Include="$(Ecma2ShimOutputRoot)bin\$(Configuration)\net48\$(Ecma2ShimAssemblyName).pdb"
+			                   Condition="Exists('$(Ecma2ShimOutputRoot)bin\$(Configuration)\net48\$(Ecma2ShimAssemblyName).pdb')" />
+		</ItemGroup>
+
+		<Copy SourceFiles="@(Ecma2ShimArtifact)"
+		      DestinationFolder="$(OutDir)ecma2\"
+		      SkipUnchangedFiles="false" />
+
+		<Message Importance="high" Text="Lithnet ECMA2: built FIM shim '$(Ecma2ShimAssemblyName).dll' and copied it to '$(OutDir)ecma2\'." />
+
+	</Target>
+
+	<!--
+		Publish the out-of-process worker closure SELF-CONTAINED + ReadyToRun, alongside the per-MA shim (+ pdb +
+		optional packaged-MA manifest), into the consumer's publish output.
+
+		This mirrors BuildEcma2Host's mechanics (isolated output root, packaged-mode copy-Host.proj-under-the-
+		consumer-tree for hierarchical nuget.config discovery, the same -p: forwards for MMS / packaged-tooling /
+		consumer / TFM), but runs `dotnet publish` instead of `dotnet build` so the worker is produced as a
+		runtime-independent deployment artifact, and copies the result into $(PublishDir) rather than $(OutDir).
+
+		Why this is a separate Publish hook and NOT the old "copy the build output into PublishDir" model:
+
+		  * On `dotnet build`, BuildEcma2Host produces a FRAMEWORK-DEPENDENT worker into $(OutDir). The old
+		    IncludeEcma2ShimInPublish target then registered $(OutDir)*.* as ResolvedFileToPublish, which would
+		    leak that framework-dependent worker into the publish output - the OPPOSITE of a self-contained
+		    publish. That model is gone.
+		  * Instead, BuildEcma2Host is guarded OFF during a publish (its '$(_IsPublishing)' != 'true' condition),
+		    and this target re-runs the host sub-build as `dotnet publish` (self-contained + R2R), landing the
+		    worker DIRECTLY in $(PublishDir). The consumer's own files (its DLL, appsettings, the MMS facade)
+		    reach $(PublishDir) via the normal publish pipeline; the host publish's flat copy of those same files
+		    overwrites them identically (harmless).
+		  * The net48 shim is still built during the publish's internal Build phase (BuildEcma2Shim has no
+		    _IsPublishing guard - it always runs AfterTargets="Build", and a publish runs Build first), so its
+		    output sits in $(OutDir)ecma2\ ready to be copied across to $(PublishDir)ecma2\ here.
+
+		AfterTargets="Publish" runs AFTER the consumer's publish file-collection completes, so $(PublishDir) holds
+		the consumer's own closure when this target lands the worker + shim + manifest on top.
+	-->
+	<Target Name="PublishEcma2Host" AfterTargets="Publish" DependsOnTargets="ResolveEcma2HostMmsPath" Condition="'$(Ecma2InnerBuild)' != 'true'">
+
+		<PropertyGroup>
+			<!-- A SEPARATE isolated output root from the build hook's $(Ecma2HostOutputRoot), so the
+			     framework-dependent build output and the self-contained publish output never share an obj/bin and
+			     cannot contaminate each other. -->
+			<Ecma2HostPublishOutputRoot Condition="'$(Ecma2HostPublishOutputRoot)' == ''">$([System.IO.Path]::GetFullPath('$(MSBuildProjectDirectory)\$(IntermediateOutputPath)ecma2hostpublish\'))</Ecma2HostPublishOutputRoot>
+
+			<!-- Packaged-tooling args, forwarded ONLY when consumed from the NuGet package (same rationale as
+			     BuildEcma2Host: the host sub-build is a separate process that does not auto-import the consumer's
+			     package props). -->
+			<Ecma2HostPackagedArgs Condition="'$(Ecma2PackagedTooling)' == 'true'">-p:Ecma2PackagedTooling=true -p:Ecma2GeneratorDll=&quot;$(Ecma2GeneratorDll)&quot;</Ecma2HostPackagedArgs>
+
+			<!-- Packaged mode: build the consumer-tree COPY of Host.proj so NuGet's project-directory config
+			     discovery finds the consumer's full hierarchical nuget.config chain (see the BuildEcma2Host note);
+			     in-repo build the original in place. -->
+			<Ecma2HostPublishProjectCopy Condition="'$(Ecma2PackagedTooling)' == 'true'">$([MSBuild]::EnsureTrailingSlash('$(Ecma2HostPublishOutputRoot)'))$([System.IO.Path]::GetFileName('$(Ecma2HostProject)'))</Ecma2HostPublishProjectCopy>
+			<Ecma2HostPublishBuildProject Condition="'$(Ecma2PackagedTooling)' == 'true'">$(Ecma2HostPublishProjectCopy)</Ecma2HostPublishBuildProject>
+			<Ecma2HostPublishBuildProject Condition="'$(Ecma2HostPublishBuildProject)' == ''">$(Ecma2HostProject)</Ecma2HostPublishBuildProject>
+
+			<!-- Runtime args applied ONLY when the worker TFM supports self-contained / R2R publishing (net5+).
+			     For a net4x worker the gate is false and these are empty, so the publish is framework-dependent,
+			     exactly like the build (.NET Framework is machine-installed). -->
+			<Ecma2HostPublishRuntimeArgs Condition="'$(Ecma2WorkerSupportsPublishRuntime)' == 'true'">-r $(Ecma2WorkerRuntimeIdentifier) -p:SelfContained=$(Ecma2WorkerSelfContained) -p:PublishReadyToRun=$(Ecma2WorkerReadyToRun)</Ecma2HostPublishRuntimeArgs>
+		</PropertyGroup>
+
+		<!-- Packaged mode only: place the host project copy under the consumer's directory tree for correct
+		     hierarchical nuget.config discovery (see BuildEcma2Host). -->
+		<MakeDir Condition="'$(Ecma2PackagedTooling)' == 'true'" Directories="$(Ecma2HostPublishOutputRoot)" />
+		<Copy Condition="'$(Ecma2PackagedTooling)' == 'true'"
+		      SourceFiles="$(Ecma2HostProject)"
+		      DestinationFiles="$(Ecma2HostPublishProjectCopy)"
+		      SkipUnchangedFiles="false" />
+
+		<!-- Publish the host. The runtime args (self-contained + R2R, net5+ only) precede the trailing-backslash
+		     Ecma2HostOutputRoot, which is passed LAST so its escaped closing quote is harmless (Host.proj
+		     re-normalizes it). -->
+		<Exec Command="dotnet publish &quot;$(Ecma2HostPublishBuildProject)&quot; -c $(Configuration) -restore -p:Version=&quot;$(Version)&quot; $(Ecma2HostPublishRuntimeArgs) -p:Ecma2InnerBuild=true -p:Ecma2HostExeName=$(Ecma2HostExeName) -p:Ecma2HostTargetFramework=$(Ecma2HostTargetFramework) -p:Ecma2ConsumerAssemblyName=$(AssemblyName) -p:Ecma2ConsumerProject=&quot;$(MSBuildProjectFullPath)&quot; -p:Ecma2ManagementAgentName=$(Ecma2ShimAssemblyName) -p:Ecma2HostMmsPath=&quot;$(Ecma2HostMmsPath)&quot; $(Ecma2HostPackagedArgs) -p:Ecma2HostOutputRoot=&quot;$(Ecma2HostPublishOutputRoot)&quot;" />
+
+		<PropertyGroup>
+			<!--
+				The host publish output dir.
+
+				AppendRuntimeIdentifierToOutputPath=false (set in Host.proj) keeps the BUILD output flat at
+				bin\$(Configuration)\$(tfm)\ (no <rid> subfolder), but it does NOT govern the PUBLISH directory:
+				the .NET SDK computes PublishDir for a RID-specified publish as $(OutputPath)\<rid>\publish\,
+				independently of AppendRuntimeIdentifierToOutputPath (verified empirically against this SDK -
+				`dotnet publish -r win-x64` lands the worker in ...\$(tfm)\win-x64\publish\). When no RID is passed
+				(the net4x gate-off path), publish lands in the flat ...\$(tfm)\publish\.
+
+				So the publish dir carries the <rid> segment EXACTLY when the runtime args (which include -r) were
+				applied - i.e. when Ecma2WorkerSupportsPublishRuntime is true. Compute it accordingly. -->
+			<Ecma2HostPublishTfmDir>$([MSBuild]::EnsureTrailingSlash('$(Ecma2HostPublishOutputRoot)'))bin\$(Configuration)\$(Ecma2HostTargetFramework)\</Ecma2HostPublishTfmDir>
+			<Ecma2HostPublishDir Condition="'$(Ecma2WorkerSupportsPublishRuntime)' == 'true'">$(Ecma2HostPublishTfmDir)$(Ecma2WorkerRuntimeIdentifier)\publish\</Ecma2HostPublishDir>
+			<Ecma2HostPublishDir Condition="'$(Ecma2HostPublishDir)' == ''">$(Ecma2HostPublishTfmDir)publish\</Ecma2HostPublishDir>
+			<Ecma2HostPublishExePath>$(Ecma2HostPublishDir)$(Ecma2HostExeName).exe</Ecma2HostPublishExePath>
+		</PropertyGroup>
+
+		<Error Condition="!Exists('$(Ecma2HostPublishExePath)')"
+		       Text="The Lithnet ECMA2 host publish completed but the expected host executable '$(Ecma2HostPublishExePath)' was not found. The host could not be published." />
+
+		<!-- Copy the host's COMPLETE publish output FLAT into the consumer's $(PublishDir) (same flat layout the
+		     build hook uses for $(OutDir)). The host IS the consumer's app running out-of-process, so its closure
+		     and the consumer's own published output are ONE worker. -->
+		<ItemGroup>
+			<Ecma2HostPublishArtifact Include="$(Ecma2HostPublishDir)**\*.*" />
+		</ItemGroup>
+
+		<Copy SourceFiles="@(Ecma2HostPublishArtifact)"
+		      DestinationFiles="@(Ecma2HostPublishArtifact->'$(PublishDir)%(RecursiveDir)%(Filename)%(Extension)')"
+		      SkipUnchangedFiles="false" />
+
+		<!-- Copy the net48 shim (+ pdb + any manifest already emitted during the build phase) from the build
+		     output's 'ecma2\' subfolder into $(PublishDir)ecma2\. The shim is produced by BuildEcma2Shim during
+		     the publish's internal Build phase (it has no _IsPublishing guard). The manifest is re-emitted below
+		     from the PUBLISHED worker, overwriting any build-phase copy. -->
+		<ItemGroup>
+			<Ecma2PublishShimArtifact Include="$(OutDir)ecma2\**\*.*" />
+		</ItemGroup>
+
+		<MakeDir Directories="$(PublishDir)ecma2\" />
+
+		<Copy Condition="'@(Ecma2PublishShimArtifact)' != ''"
+		      SourceFiles="@(Ecma2PublishShimArtifact)"
+		      DestinationFiles="@(Ecma2PublishShimArtifact->'$(PublishDir)ecma2\%(RecursiveDir)%(Filename)%(Extension)')"
+		      SkipUnchangedFiles="false" />
+
+		<Message Importance="high" Text="Lithnet ECMA2: published self-contained=$(Ecma2WorkerSelfContained) R2R=$(Ecma2WorkerReadyToRun) host '$(Ecma2HostExeName).exe' ($(Ecma2HostTargetFramework)) and copied its closure + shim to '$(PublishDir)'." />
+
+		<!-- Optional packaged-MA manifest, emitted from the PUBLISHED worker into $(PublishDir)ecma2\. Same
+		     fail-loud identity-field validation as EmitEcma2Manifest (build path); the manifest reflects the real
+		     DI container's capabilities + config parameters. -->
+		<Error Condition="'$(Ecma2GeneratePackagedMa)' == 'true' and '$(Ecma2PackagedManagementAgentId)' == ''"
+		       Text="Ecma2GeneratePackagedMa is true but Ecma2PackagedManagementAgentId is empty. Set the packaged-MA id (a GUID) in Lithnet.Ecma2Framework.PackagedMa.props." />
+		<Error Condition="'$(Ecma2GeneratePackagedMa)' == 'true' and '$(Ecma2PackagedMaCompany)' == ''"
+		       Text="Ecma2GeneratePackagedMa is true but Ecma2PackagedMaCompany is empty. Set the company name in Lithnet.Ecma2Framework.PackagedMa.props." />
+		<Error Condition="'$(Ecma2GeneratePackagedMa)' == 'true' and '$(Ecma2PackagedMaListName)' == ''"
+		       Text="Ecma2GeneratePackagedMa is true but Ecma2PackagedMaListName is empty. Set the list name in Lithnet.Ecma2Framework.PackagedMa.props." />
+
+		<!-- The build agent has no MIM install, so point the worker's MMS resolver at the compile-time MMS
+		     assembly (the consumer's own reference, present on the agent) for this build-time run. -->
+		<Exec Condition="'$(Ecma2GeneratePackagedMa)' == 'true'"
+		      ConsoleToMSBuild="true"
+		      EnvironmentVariables="LITHNET_ECMA2_MMS_PATH=$(Ecma2HostMmsPath)"
+		      Command="&quot;$(PublishDir)$(Ecma2HostExeName).exe&quot; --emit-manifest &quot;$(PublishDir)ecma2\$(Ecma2ShimAssemblyName).PackagedMA.xml&quot; --ma-id &quot;$(Ecma2PackagedManagementAgentId)&quot; --company &quot;$(Ecma2PackagedMaCompany)&quot; --listname &quot;$(Ecma2PackagedMaListName)&quot; --help-text &quot;$(Ecma2PackagedMaHelpText)&quot; --shim-name &quot;$(Ecma2ShimAssemblyName).dll&quot; --assembly-version &quot;$(Ecma2ManifestAssemblyVersion)&quot;">
+			<Output TaskParameter="ConsoleOutput" ItemName="Ecma2PublishManifestEmitOutput" />
+		</Exec>
+
+		<Message Condition="'$(Ecma2GeneratePackagedMa)' == 'true'"
+		         Importance="high"
+		         Text="Lithnet ECMA2: @(Ecma2PublishManifestEmitOutput)" />
+
+	</Target>
+
+	<!--
+		Scaffold the consumer's packaged-MA identity props on first build.
+
+		Runs BEFORE Build so the file exists for the consumer to fill in. It is copied from the template
+		ONLY when the consumer does not already have one (Condition="!Exists(...)"); an existing file is
+		NEVER overwritten, so the consumer's edited identity is always preserved. The Copy is paired with
+		that same guard via the target's Condition so the high-importance "created" message is shown only
+		when the file was actually scaffolded.
+
+		The template defaults Ecma2GeneratePackagedMa to false, so scaffolding a blank file never silently
+		turns generation on - the consumer must consciously edit the file to opt in.
+	-->
+	<PropertyGroup>
+		<Ecma2PackagedMaTemplate Condition="'$(Ecma2PackagedMaTemplate)' == ''">$(MSBuildThisFileDirectory)Lithnet.Ecma2Framework.PackagedMa.template.props</Ecma2PackagedMaTemplate>
+		<Ecma2PackagedMaPropsPath Condition="'$(Ecma2PackagedMaPropsPath)' == ''">$(MSBuildProjectDirectory)\Lithnet.Ecma2Framework.PackagedMa.props</Ecma2PackagedMaPropsPath>
+	</PropertyGroup>
+
+	<Target Name="ScaffoldEcma2PackagedMaProps"
+	        BeforeTargets="Build"
+	        Condition="'$(Ecma2InnerBuild)' != 'true' and !Exists('$(Ecma2PackagedMaPropsPath)')">
+
+		<Copy SourceFiles="$(Ecma2PackagedMaTemplate)"
+		      DestinationFiles="$(Ecma2PackagedMaPropsPath)"
+		      SkipUnchangedFiles="false" />
+
+		<Message Importance="high"
+		         Text="Lithnet ECMA2: created '$(Ecma2PackagedMaPropsPath)'. Fill it in and set Ecma2GeneratePackagedMa=true to generate a FIM packaged MA manifest as part of the build." />
+
+	</Target>
+
+	<!--
+		Emit the FIM Packaged-MA manifest after the worker exe + shim are built.
+
+		This is an OPTIONAL feature, OFF by default. The opt-in switch (Ecma2GeneratePackagedMa) and the
+		identity fields come from the consumer's Lithnet.Ecma2Framework.PackagedMa.props (imported at the top).
+
+		  * OFF (the default): the target emits a single low-key message and does nothing else. The build
+		    succeeds and the MA works as a standard ECMA2 extension. This is a VISIBLE skip, not a silent one.
+		  * ON but a required identity field is blank: the build FAILS LOUD with an <Error> that names the
+		    missing field, before the worker is invoked. A packaged MA with a missing id/company/list name is
+		    a misconfiguration, not a defaulting opportunity, so it must fail rather than emit a half manifest.
+		  * ON and valid: the worker exe (now at the output root - see BuildEcma2Host) is run in emit-manifest
+		    mode to write the manifest into the 'ecma2\' subfolder next to the shim. The worker builds the real
+		    DI container and reads the real capabilities + config parameters, so the manifest reflects the actual
+		    MA. A non-zero exit fails the build; the worker's stdout ("[manifest] wrote ...") is surfaced so
+		    success is visible.
+
+		AfterTargets ordering: BuildEcma2Shim produces the shim and also runs AfterTargets="Build"; this target
+		depends on it so the shim DLL exists when the manifest (which names the shim file) is emitted. The
+		worker exe itself is produced by Build.
+	-->
+	<PropertyGroup>
+		<!-- Assembly version written to the manifest's <assembly-version>. FIM does not enforce it, so this is
+		     informational; it defaults to the consumer's AssemblyVersion, or 1.0.0.0 when that is unset. -->
+		<Ecma2ManifestAssemblyVersion Condition="'$(Ecma2ManifestAssemblyVersion)' == ''">$(AssemblyVersion)</Ecma2ManifestAssemblyVersion>
+		<Ecma2ManifestAssemblyVersion Condition="'$(Ecma2ManifestAssemblyVersion)' == ''">1.0.0.0</Ecma2ManifestAssemblyVersion>
+	</PropertyGroup>
+
+	<Target Name="EmitEcma2Manifest"
+	        AfterTargets="Build"
+	        DependsOnTargets="BuildEcma2Host;BuildEcma2Shim"
+	        Condition="'$(Ecma2InnerBuild)' != 'true' and '$(_IsPublishing)' != 'true'">
+
+		<!-- OFF / absent: visible skip, build succeeds, nothing generated. -->
+		<Message Condition="'$(Ecma2GeneratePackagedMa)' != 'true'"
+		         Importance="normal"
+		         Text="Lithnet ECMA2: Packaged MA generation is off; set Ecma2GeneratePackagedMa=true in Lithnet.Ecma2Framework.PackagedMa.props to enable." />
+
+		<!-- ON: fail loud before doing anything if any required identity field is blank. -->
+		<Error Condition="'$(Ecma2GeneratePackagedMa)' == 'true' and '$(Ecma2PackagedManagementAgentId)' == ''"
+		       Text="Ecma2GeneratePackagedMa is true but Ecma2PackagedManagementAgentId is empty. Set the packaged-MA id (a GUID) in Lithnet.Ecma2Framework.PackagedMa.props." />
+		<Error Condition="'$(Ecma2GeneratePackagedMa)' == 'true' and '$(Ecma2PackagedMaCompany)' == ''"
+		       Text="Ecma2GeneratePackagedMa is true but Ecma2PackagedMaCompany is empty. Set the company name in Lithnet.Ecma2Framework.PackagedMa.props." />
+		<Error Condition="'$(Ecma2GeneratePackagedMa)' == 'true' and '$(Ecma2PackagedMaListName)' == ''"
+		       Text="Ecma2GeneratePackagedMa is true but Ecma2PackagedMaListName is empty. Set the list name in Lithnet.Ecma2Framework.PackagedMa.props." />
+
+		<!-- Ensure the 'ecma2\' subfolder exists before the worker writes the manifest into it. BuildEcma2Shim
+		     (a DependsOnTargets prerequisite) normally creates it via its shim Copy, but the MakeDir is kept as a
+		     defence so the emit cannot fail on a missing directory. -->
+		<MakeDir Condition="'$(Ecma2GeneratePackagedMa)' == 'true'" Directories="$(OutDir)ecma2\" />
+
+		<!-- ON + valid: run the worker exe (at the output root) in emit-manifest mode. The manifest is written
+		     into the 'ecma2\' subfolder next to the shim, named '<shim>.PackagedMA.xml'. All args are quoted
+		     because paths/values may contain spaces; a non-zero exit fails the build. -->
+		<!-- The build agent has no MIM install, so point the worker's MMS resolver at the compile-time MMS
+		     assembly (the consumer's own reference, present on the agent) for this build-time run. -->
+		<Exec Condition="'$(Ecma2GeneratePackagedMa)' == 'true'"
+		      ConsoleToMSBuild="true"
+		      EnvironmentVariables="LITHNET_ECMA2_MMS_PATH=$(Ecma2HostMmsPath)"
+		      Command="&quot;$(OutDir)$(Ecma2HostExeName).exe&quot; --emit-manifest &quot;$(OutDir)ecma2\$(Ecma2ShimAssemblyName).PackagedMA.xml&quot; --ma-id &quot;$(Ecma2PackagedManagementAgentId)&quot; --company &quot;$(Ecma2PackagedMaCompany)&quot; --listname &quot;$(Ecma2PackagedMaListName)&quot; --help-text &quot;$(Ecma2PackagedMaHelpText)&quot; --shim-name &quot;$(Ecma2ShimAssemblyName).dll&quot; --assembly-version &quot;$(Ecma2ManifestAssemblyVersion)&quot;">
+			<Output TaskParameter="ConsoleOutput" ItemName="Ecma2ManifestEmitOutput" />
+		</Exec>
+
+		<!-- Surface the worker's stdout (the "[manifest] wrote ..." line) so a successful emit is visible. -->
+		<Message Condition="'$(Ecma2GeneratePackagedMa)' == 'true'"
+		         Importance="high"
+		         Text="Lithnet ECMA2: @(Ecma2ManifestEmitOutput)" />
+
+	</Target>
+
+</Project>

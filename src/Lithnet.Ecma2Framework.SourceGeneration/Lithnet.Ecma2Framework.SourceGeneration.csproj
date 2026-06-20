@@ -1,4 +1,4 @@
-﻿<Project Sdk="Microsoft.NET.Sdk">
+<Project Sdk="Microsoft.NET.Sdk">
 
 	<PropertyGroup>
 		<TargetFramework>netstandard2.0</TargetFramework>
@@ -12,7 +12,7 @@
 	<PropertyGroup>
 		<Description>The Lithnet ECMA2 framework provides a base for creating high performance multi-threaded management agents for Microsoft Identity Manager</Description>
 		<Company>Lithnet</Company>
-		<Copyright>Copyright 2024 Lithnet Pty Ltd</Copyright>
+		<Copyright>Copyright $([System.DateTime]::Now.Year) Lithnet Pty Ltd</Copyright>
 		<ProductName>Lithnet ECMA2 framework</ProductName>
 		<Authors>Lithnet</Authors>
 	</PropertyGroup>
@@ -23,11 +23,8 @@
 	</PropertyGroup>
 
 	<ItemGroup>
+		<None Remove="Templates\*" />
 		<EmbeddedResource Include="Templates\*" />
-	</ItemGroup>
-
-	<ItemGroup>
-	  <None Remove="Templates\Ecma2GeneratedConfigParametersProvider.txt" />
 	</ItemGroup>
 
 	<ItemGroup>

@@ -1,0 +1,35 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+	<!--
+		Part C: the real net48 compile-proof of the two-output build.
+
+		This test project invokes the static shim project (Lithnet.Ecma2Framework.Shim.proj) through the
+		actual build mechanism with a sample MA name, then inspects the produced <MAName>.dll via pure
+		metadata reads (System.Reflection.Metadata PEReader - no execution, no assembly loading) to assert:
+		  1. the assembly's simple name is the MA name,
+		  2. its public exported types are EXACTLY the four host-facing impls,
+		  3. each impl declares the expected IMAExtensible2* interface, and
+		  4. its referenced assemblies contain no Lithnet.* (the closure proof).
+
+		The test host targets net8 (it never loads the net48 shim - it only reads its metadata), so the
+		net48 shim and the net8 test host never share a load context.
+	-->
+
+	<PropertyGroup>
+		<TargetFramework>net8.0</TargetFramework>
+		<LangVersion>12</LangVersion>
+		<IsPackable>false</IsPackable>
+		<Nullable>disable</Nullable>
+	</PropertyGroup>
+
+	<ItemGroup>
+		<PackageReference Include="Microsoft.NET.Test.Sdk" Version="18.6.0" />
+		<PackageReference Include="MSTest.TestAdapter" Version="4.2.3" />
+		<PackageReference Include="MSTest.TestFramework" Version="4.2.3" />
+		<!-- System.Reflection.Metadata ships in the net8 shared framework; no PackageReference needed. -->
+		<!-- Supplies Microsoft.MetadirectoryServicesEx.dll into this test's output so the shim build it drives
+		     can be handed a real Ecma2HostMmsPath. -->
+		<PackageReference Include="Lithnet.MIM.MetadirectoryServicesEx" Version="4.3.1935" PrivateAssets="all" />
+	</ItemGroup>
+
+</Project>

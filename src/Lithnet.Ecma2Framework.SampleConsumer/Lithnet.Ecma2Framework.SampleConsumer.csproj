@@ -1,0 +1,50 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+	<PropertyGroup>
+		<TargetFramework>net8.0</TargetFramework>
+		<OutputType>Library</OutputType>
+		<LangVersion>12</LangVersion>
+		<IsPackable>false</IsPackable>
+
+		<!-- No <Ecma2ManagementAgentName> is set here, so the shim name AUTO-DERIVES from this project's
+		     assembly name with the '.Ecma2' suffix: Lithnet.Ecma2Framework.SampleConsumer.Ecma2(.dll). That
+		     name becomes the generated shim assembly's name, the namespace of the generated host-facing impls,
+		     and the name the shim self-identifies with to resolve the worker (WorkerPathResolver.Resolve()).
+		     This exercises the auto-derived default; the optional override is exercised by Shim.Build.Tests. -->
+
+		<!-- NU1701: the host MMS reference is a net4x assembly; on net8 it loads via type-forwarding
+		     facades (proven dependable). MSB3270: processor-architecture mismatch warning for the same
+		     AnyCPU/net4x reference. Both are expected and suppressed. -->
+		<NoWarn>$(NoWarn);NU1701;MSB3270</NoWarn>
+	</PropertyGroup>
+
+	<ItemGroup>
+		<PackageReference Include="Lithnet.MIM.MetadirectoryServicesEx" Version="4.3.1935" PrivateAssets="all" ExcludeAssets="runtime" />
+	</ItemGroup>
+
+	<ItemGroup>
+		<!-- Framework (provider/startup contracts) + Hosting (WorkerEntryPoint runtime). The generated worker
+		     Main lives in the host exe (built by the framework targets), not in this library; this consumer
+		     carries no source generator analyzer reference and no generated code. -->
+		<ProjectReference Include="..\Lithnet.Ecma2Framework.Sdk\Lithnet.Ecma2Framework.Sdk.csproj" />
+		<ProjectReference Include="..\Lithnet.Ecma2Framework.Hosting\Lithnet.Ecma2Framework.Hosting.csproj" />
+	</ItemGroup>
+
+	<ItemGroup>
+		<PackageReference Include="Microsoft.Extensions.DependencyInjection" Version="10.0.9" />
+		<PackageReference Include="Microsoft.Extensions.Logging" Version="10.0.9" />
+	</ItemGroup>
+
+	<!-- Importing the framework targets does two things after this library builds: (1) builds the
+	     out-of-process host exe (Ecma2Host.exe) as a separate build unit that ProjectReferences this consumer,
+	     and copies its FULL closure FLAT into this project's output ROOT (the consumer output + the generated
+	     host together form one net8 worker), and (2) compiles the net48 shim
+	     (Lithnet.Ecma2Framework.SampleConsumer.Ecma2.dll) in an isolated obj/bin and copies it into an 'ecma2\'
+	     subfolder of this project's output. The targets' default input paths (Ecma2ShimSourcesTargets, Ecma2HostProject,
+	     Ecma2ShimProject) all resolve relative to the targets file itself
+	     ($(MSBuildThisFileDirectory) = src\Lithnet.Ecma2Framework\build\), not relative to this consumer, so
+	     no override is required from this location. The host MMS path is NOT a default: the framework derives it
+	     from this consumer's own Microsoft.MetadirectoryServicesEx reference (declared above). -->
+	<Import Project="..\Lithnet.Ecma2Framework\build\Lithnet.Ecma2Framework.targets" />
+
+</Project>

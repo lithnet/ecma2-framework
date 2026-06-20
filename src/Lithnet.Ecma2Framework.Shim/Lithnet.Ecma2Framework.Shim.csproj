@@ -1,0 +1,38 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+	<PropertyGroup>
+		<TargetFramework>net48</TargetFramework>
+		<LangVersion>12</LangVersion>
+		<IsPackable>false</IsPackable>
+		<Nullable>disable</Nullable>
+		<!-- CsWin32 generates unsafe code for HANDLE and pointer types; this flag is required by the generator, not by our own code. -->
+		<AllowUnsafeBlocks>true</AllowUnsafeBlocks>
+		<!-- PInvoke009 is CsWin32 recommending the System.Memory package. We deliberately omit it to keep the shim's
+		     closure to {host MMS, BCL, CsWin32}: System.Memory is a separate net48 redistributable and pulling it into
+		     miiserver.exe's shared AppDomain reintroduces the shared-assembly conflict class this design eliminates. -->
+		<NoWarn>$(NoWarn);PInvoke009</NoWarn>
+		<!-- The shim sources are globbed by the shared .targets below; disable the SDK's automatic
+		     **\*.cs globbing so the same files are not double-included. -->
+		<EnableDefaultCompileItems>false</EnableDefaultCompileItems>
+		<!-- The shared Lithnet transport types are public in ObjectModel.dll (the worker + providers author
+		     against them) but MUST be internal when compiled into the shim, to honour the shim public-surface
+		     invariant (only the four generated IMAExtensible2 impls are public in the shim assembly). This
+		     constant flips their access modifier to internal in shim builds via the ECMA2_SHIM_INTERNAL #if. -->
+		<DefineConstants>$(DefineConstants);ECMA2_SHIM_INTERNAL</DefineConstants>
+	</PropertyGroup>
+
+	<ItemGroup>
+		<!-- This project's own identity file (InternalsVisibleTo for the test assemblies). It is
+		     deliberately NOT part of the shared source set, so add it back explicitly here. -->
+		<Compile Include="AssemblyInfo.cs" />
+	</ItemGroup>
+
+	<ItemGroup>
+		<PackageReference Include="Lithnet.MIM.MetadirectoryServicesEx" Version="4.3.1935" PrivateAssets="all" ExcludeAssets="runtime" />
+	</ItemGroup>
+
+	<!-- Shared shim source set: the compile glob, the CsWin32 input file, and the CsWin32
+	     source generator. Single source of truth, also imported by the generated shim. -->
+	<Import Project="Lithnet.Ecma2Framework.Shim.Sources.targets" />
+
+</Project>

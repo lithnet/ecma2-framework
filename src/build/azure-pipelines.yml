@@ -1,5 +1,5 @@
 pool:
-  vmImage: 'ubuntu-latest'
+  vmImage: 'windows-latest'
 
 resources:
   repositories:
@@ -14,7 +14,7 @@ variables:
   - name: buildConfiguration
     value: 'Release'
   - name: build.version.major
-    value: 2
+    value: 3
   - name: build.version.minor
     value: 0
   - name: build.version.revision
@@ -43,12 +43,32 @@ stages:
       steps:
       - template: templates/checkout.yaml@release_tools
 
+      # Restore now reaches LithnetPrivatePackages for Lithnet.MIM.MetadirectoryServicesEx (the compile-only MMS
+      # reference). Authenticate the feed declared in src/nuget.config before the build's implicit restore.
+      - task: NuGetAuthenticate@1
+        displayName: Authenticate to the Lithnet private feed
+
       - task: DotNetCoreCLI@2
         displayName: dotnet build
         inputs:
           command: build
           arguments: '-c $(buildConfiguration) -p:Version=$(build.version) -p:GeneratePackageOnBuild=false'
-          projects: 'src/Lithnet.Ecma2Framework/Lithnet.Ecma2Framework.csproj'
+          # Build only the projects whose output the (nobuild:true) pack steps below consume - not the whole
+          # solution (which also builds the example, test, and sample/consumer projects we never ship):
+          #   * Sdk + Hosting     - each packs its own assembly; Hosting transitively builds Serialization
+          #                         (bundled into Hosting.dll), and both transitively build the Sdk.
+          #   * holding           - packs no assembly of its own, but pack still needs its build/restore assets;
+          #                         its ProjectReferences cover Sdk + Hosting.
+          #   * SourceGeneration  - the generator DLL the holding package bundles under build\tools\. It is
+          #                         referenced as a loose <None> file from its bin output, NOT as a
+          #                         ProjectReference, so it must be named explicitly or it is never built.
+          # The shim + serialization sources the holding package ships are packed as .cs source, so those
+          # projects need no build here.
+          projects: |
+            src/Lithnet.Ecma2Framework.Sdk/Lithnet.Ecma2Framework.Sdk.csproj
+            src/Lithnet.Ecma2Framework.Hosting/Lithnet.Ecma2Framework.Hosting.csproj
+            src/Lithnet.Ecma2Framework.SourceGeneration/Lithnet.Ecma2Framework.SourceGeneration.csproj
+            src/Lithnet.Ecma2Framework/Lithnet.Ecma2Framework.csproj
 
       - template: templates/codesign.yaml@release_tools
         parameters:
@@ -58,14 +78,39 @@ stages:
           azureSubscription: $(azure.subscription)
           description: 'Lithnet ECMA2 Framework'
 
+      # Pack ALL THREE packages: the contracts SDK (Lithnet.Ecma2Framework.Sdk), the host runtime
+      # (Lithnet.Ecma2Framework.Hosting), and the consumer-facing holding package (Lithnet.Ecma2Framework). The
+      # holding package declares >= dependencies on the Sdk and Hosting packages; the consumer installs the
+      # holding package and NuGet resolves the matching Sdk (compile reference) + Hosting closure transitively.
+      # All three are packed at the identical version (byEnvVar) and the >= ranges resolve lowest-applicable, so
+      # the consumer always gets a matching Sdk + Hosting set - no exact pins, no version stamping.
       - task: DotNetCoreCLI@2
-        displayName: dotnet pack
+        displayName: dotnet pack (SDK)
+        inputs:
+          command: 'pack'
+          packagesToPack: 'src/Lithnet.Ecma2Framework.Sdk/Lithnet.Ecma2Framework.Sdk.csproj'
+          packDirectory: '$(Build.ArtifactStagingDirectory)\cp'
+          nobuild: true
+          versioningScheme: 'byEnvVar'
+          versionEnvVar: 'build.version'
+
+      - task: DotNetCoreCLI@2
+        displayName: dotnet pack (Hosting)
+        inputs:
+          command: 'pack'
+          packagesToPack: 'src/Lithnet.Ecma2Framework.Hosting/Lithnet.Ecma2Framework.Hosting.csproj'
+          packDirectory: '$(Build.ArtifactStagingDirectory)\cp'
+          nobuild: true
+          versioningScheme: 'byEnvVar'
+          versionEnvVar: 'build.version'
+
+      - task: DotNetCoreCLI@2
+        displayName: dotnet pack (holding)
         inputs:
           command: 'pack'
           packagesToPack: 'src/Lithnet.Ecma2Framework/Lithnet.Ecma2Framework.csproj'
           packDirectory: '$(Build.ArtifactStagingDirectory)\cp'
           nobuild: true
-          includesymbols: true
           versioningScheme: 'byEnvVar'
           versionEnvVar: 'build.version'
 
@@ -100,7 +145,7 @@ stages:
         environment: 'Public nuget feed'
         displayName: Publish packages to public nuget feed
         pool:
-          vmImage: ubuntu-latest
+          vmImage: windows-latest
         strategy:
           runOnce:
             deploy:
@@ -113,4 +158,4 @@ stages:
                   nugetPackagePath: '$(Pipeline.Workspace)/cp/*.nupkg'
                   publishInternal: false
                   publishExternal: true
-                  externalFeedCredentials: 'WindowsECMA2FrameworkNuget'
+                  externalFeedCredentials: 'MimManagementAgentsNuget'

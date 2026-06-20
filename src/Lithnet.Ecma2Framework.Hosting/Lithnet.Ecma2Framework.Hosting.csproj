@@ -1,0 +1,90 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+	<PropertyGroup>
+		<TargetFramework>netstandard2.0</TargetFramework>
+		<OutputType>Library</OutputType>
+		<LangVersion>12</LangVersion>
+		<!-- NU1701: the host MMS reference is a net4x assembly; on net8 it loads via type-forwarding
+		     facades (proven dependable). MSB3270: processor-architecture mismatch warning for the same
+		     AnyCPU/net4x reference. NU5100: the Serialization.dll bundled into lib\ via
+		     TargetsForTfmSpecificBuildOutput is added from a sibling project's bin, not from this project's own
+		     build output - all expected, suppressed. -->
+		<NoWarn>$(NoWarn);NU1701;MSB3270;NU5100</NoWarn>
+
+		<!--
+			The host runtime is its own NuGet package. The packaged Host.proj references it the STANDARD way
+			(<PackageReference Include="Lithnet.Ecma2Framework.Hosting">), so the host's transitive restore pulls
+			Hosting.dll + its declared dependencies automatically:
+			  * StreamJsonRpc              - from the PackageReference below (emitted as a package dependency by pack);
+			  * Lithnet.Ecma2Framework.Sdk - from the SDK ProjectReference below (emitted as a package dependency);
+			  * Serialization.dll          - NOT a package dependency (it has no NuGet package); it is an internal
+			                             implementation assembly of Hosting (0 public types), so it is BUNDLED into
+			                             this package's lib\netstandard2.0\ alongside Hosting.dll (see PrivateAssets
+			                             on its ProjectReference + the TargetsForTfmSpecificBuildOutput target below).
+			A future runtime dependency of Hosting is added here like any normal PackageReference and flows to the
+			host automatically - nothing is hand-listed in Host.proj.
+		-->
+		<IsPackable>true</IsPackable>
+		<PackageId>Lithnet.Ecma2Framework.Hosting</PackageId>
+		<!-- VersionPrefix (NOT a fixed <Version>): plain pack -> <VersionPrefix>; CI -p:Version=X.Y.Z overrides it
+		     entirely; local -p:VersionSuffix=dev.<N> -> <VersionPrefix>-dev.<N>. Pack emits a dependency on
+		     Lithnet.Ecma2Framework.Sdk automatically (from the SDK ProjectReference below) at the same version. -->
+		<VersionPrefix>3.0.5</VersionPrefix>
+		<!-- Pack is EXPLICIT (after a full solution build), never on every build: this project's own build runs
+		     before some of the toolchain it co-ships, and packing on build would race that. -->
+		<GeneratePackageOnBuild>false</GeneratePackageOnBuild>
+		<IncludeBuildOutput>true</IncludeBuildOutput>
+
+		<Description>The out-of-process host runtime for the Lithnet ECMA2 framework. Referenced by the framework's packaged host build; not referenced directly by a management agent consumer.</Description>
+		<Company>Lithnet</Company>
+		<Copyright>Copyright $([System.DateTime]::Now.Year) Lithnet Pty Ltd</Copyright>
+		<ProductName>Lithnet ECMA2 framework</ProductName>
+		<Authors>Lithnet</Authors>
+		<PackageLicenseExpression>MIT</PackageLicenseExpression>
+		<RepositoryUrl>https://github.com/lithnet/ecma2-framework</RepositoryUrl>
+		<PublishRepositoryUrl>true</PublishRepositoryUrl>
+		<IncludeSymbols>true</IncludeSymbols>
+		<SymbolPackageFormat>snupkg</SymbolPackageFormat>
+		<EmbedUntrackedSources>true</EmbedUntrackedSources>
+		<Title>Lithnet ECMA2 Framework Hosting</Title>
+		<PackageProjectUrl>https://github.com/lithnet/ecma2-framework</PackageProjectUrl>
+
+		<!-- Bundle the internal Serialization.dll into lib\netstandard2.0\ at pack time. -->
+		<TargetsForTfmSpecificBuildOutput>$(TargetsForTfmSpecificBuildOutput);IncludeSerializationInPackage</TargetsForTfmSpecificBuildOutput>
+	</PropertyGroup>
+
+	<PropertyGroup Condition="'$(TF_BUILD)' == 'true'">
+		<ContinuousIntegrationBuild>true</ContinuousIntegrationBuild>
+	</PropertyGroup>
+
+	<ItemGroup>
+		<!-- The SDK is a normal package dependency of Hosting (no PrivateAssets) - pack emits it automatically. -->
+		<ProjectReference Include="..\Lithnet.Ecma2Framework.Sdk\Lithnet.Ecma2Framework.Sdk.csproj" />
+
+		<!-- Serialization is an internal implementation assembly (0 public types, no NuGet package). PrivateAssets
+		     stops pack listing it as a (non-existent) package dependency; its DLL is bundled into lib\ instead. -->
+		<ProjectReference Include="..\Lithnet.Ecma2Framework.Serialization\Lithnet.Ecma2Framework.Serialization.csproj" PrivateAssets="all" />
+	</ItemGroup>
+
+	<ItemGroup>
+		<PackageReference Include="Lithnet.MIM.MetadirectoryServicesEx" Version="4.3.1935" PrivateAssets="all" ExcludeAssets="runtime" />
+	</ItemGroup>
+
+	<ItemGroup>
+		<PackageReference Include="StreamJsonRpc" Version="2.25.29" />
+		<PackageReference Include="Microsoft.SourceLink.GitHub" Version="10.0.300" PrivateAssets="all" />
+	</ItemGroup>
+
+	<!--
+		Bundle the internal Serialization.dll into the package's lib\netstandard2.0\. Serialization has no NuGet
+		package of its own and is suppressed as a dependency (PrivateAssets above), so its runtime assembly must
+		travel inside this package next to Hosting.dll. The DLL is taken from the sibling project's build output
+		(produced earlier in the same solution build).
+	-->
+	<Target Name="IncludeSerializationInPackage">
+		<ItemGroup>
+			<BuildOutputInPackage Include="..\Lithnet.Ecma2Framework.Serialization\bin\$(Configuration)\netstandard2.0\Lithnet.Ecma2Framework.Serialization.dll" />
+		</ItemGroup>
+	</Target>
+
+</Project>

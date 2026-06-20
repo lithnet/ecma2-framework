@@ -3,7 +3,7 @@ using Microsoft.MetadirectoryServices;
 
 namespace Lithnet.Ecma2Framework.Example
 {
-    internal class SchemaProvider : ISchemaProvider
+    public sealed class SchemaProvider : ISchemaProvider
     {
         /// <summary>
         /// Gets the management agent's schema

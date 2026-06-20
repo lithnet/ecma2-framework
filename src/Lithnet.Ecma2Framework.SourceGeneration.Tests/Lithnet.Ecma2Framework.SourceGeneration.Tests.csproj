@@ -1,0 +1,39 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+	<PropertyGroup>
+		<TargetFramework>net8.0</TargetFramework>
+		<LangVersion>12</LangVersion>
+		<IsPackable>false</IsPackable>
+		<!-- NU1701: the host MMS reference is a net4x assembly; on net8 it loads via type-forwarding
+		     facades (proven dependable). MSB3270: processor-architecture mismatch warning for the same
+		     AnyCPU/net4x reference. Both are expected and suppressed. -->
+		<NoWarn>$(NoWarn);NU1701;MSB3270</NoWarn>
+	</PropertyGroup>
+
+	<ItemGroup>
+		<PackageReference Include="Lithnet.MIM.MetadirectoryServicesEx" Version="4.3.1935" PrivateAssets="all" />
+	</ItemGroup>
+
+	<ItemGroup>
+		<PackageReference Include="Microsoft.NET.Test.Sdk" Version="18.6.0" />
+		<PackageReference Include="MSTest.TestAdapter" Version="4.2.3" />
+		<PackageReference Include="MSTest.TestFramework" Version="4.2.3" />
+		<PackageReference Include="Microsoft.CodeAnalysis.CSharp" Version="5.3.0" />
+		<PackageReference Include="Microsoft.Extensions.Configuration" Version="10.0.9" />
+		<PackageReference Include="Microsoft.Extensions.DependencyInjection" Version="10.0.9" />
+		<PackageReference Include="Microsoft.Extensions.Options" Version="10.0.9" />
+	</ItemGroup>
+
+	<ItemGroup>
+		<!-- The generator is referenced as a normal library, not an analyzer, because the tests drive it manually
+		     via CSharpGeneratorDriver. The framework project is referenced so its public types (IEcmaStartup, the
+		     provider interfaces, and the [*Configuration]/[*Parameter] attributes) resolve by metadata name when the
+		     test compilations are assembled and the generator's discovery runs against them. -->
+		<ProjectReference Include="..\Lithnet.Ecma2Framework.SourceGeneration\Lithnet.Ecma2Framework.SourceGeneration.csproj" />
+		<ProjectReference Include="..\Lithnet.Ecma2Framework.Sdk\Lithnet.Ecma2Framework.Sdk.csproj" />
+		<!-- The worker assembly carries WorkerEntryPoint, which the generated worker Main calls into. The
+		     compilation-proof test references it so the emitted Main binds against the real runtime surface. -->
+		<ProjectReference Include="..\Lithnet.Ecma2Framework.Hosting\Lithnet.Ecma2Framework.Hosting.csproj" />
+	</ItemGroup>
+
+</Project>

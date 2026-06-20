@@ -1,0 +1,37 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+	<PropertyGroup>
+		<TargetFramework>netstandard2.0</TargetFramework>
+		<LangVersion>12</LangVersion>
+		<IsPackable>false</IsPackable>
+		<Nullable>disable</Nullable>
+		<!-- NU1701: the host MMS reference is a net4x assembly; on net8 it loads via type-forwarding
+		     facades (proven dependable). MSB3270: processor-architecture mismatch warning for the same
+		     AnyCPU/net4x reference. Both are expected and suppressed. -->
+		<NoWarn>$(NoWarn);NU1701;MSB3270</NoWarn>
+		<!-- These pipe-transport types (MmsPipeSerializer, the surrogate, the *Serializable DTOs, the
+		     exception-marshalling chain, and the CSEntryIdentity wire carrier) are pure shim<->worker
+		     plumbing - NOT a consumer contract. The same #if that makes them internal when compiled into
+		     the shim makes them internal in this assembly too, so a consumer that transitively references
+		     this assembly (via the worker) never sees the wire format. The worker and the test projects
+		     reach them through the InternalsVisibleTo grants below. -->
+		<DefineConstants>$(DefineConstants);ECMA2_SHIM_INTERNAL</DefineConstants>
+	</PropertyGroup>
+
+	<ItemGroup>
+		<AssemblyAttribute Include="System.Runtime.CompilerServices.InternalsVisibleTo">
+			<_Parameter1>Lithnet.Ecma2Framework.Hosting</_Parameter1>
+		</AssemblyAttribute>
+		<AssemblyAttribute Include="System.Runtime.CompilerServices.InternalsVisibleTo">
+			<_Parameter1>Lithnet.Ecma2Framework.Hosting.Tests</_Parameter1>
+		</AssemblyAttribute>
+		<AssemblyAttribute Include="System.Runtime.CompilerServices.InternalsVisibleTo">
+			<_Parameter1>Lithnet.Ecma2Framework.Serialization.Tests</_Parameter1>
+		</AssemblyAttribute>
+	</ItemGroup>
+
+	<ItemGroup>
+		<PackageReference Include="Lithnet.MIM.MetadirectoryServicesEx" Version="4.3.1935" PrivateAssets="all" ExcludeAssets="runtime" />
+	</ItemGroup>
+
+</Project>

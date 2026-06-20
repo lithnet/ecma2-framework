@@ -261,3 +261,9 @@ __pycache__/
 *.pyc
 
 plans/
+
+# Local prerelease pack counter (per-developer; the pack-local.ps1 script is committed, this counter is not)
+src/build/.local-pack-counter
+# Microsoft MIM assemblies must never be committed (licensing)
+**/Microsoft.MetadirectoryServicesEx.dll
+**/PropertySheetBase.dll
