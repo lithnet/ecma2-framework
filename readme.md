@@ -18,4 +18,4 @@ The framework is available as a [NuGet package](https://www.nuget.org/packages/L
 
 ## Documentation and getting started
 
-See https://docs.lithnet.io/ecma2-framework for installation and a getting-started guide.
+See https://docs.lithnet.io/ecma2-framework?utm_source=github&utm_medium=readme&utm_campaign=ecma2-help for installation and a getting-started guide.
